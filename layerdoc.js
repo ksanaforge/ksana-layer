@@ -32,7 +32,6 @@ var revertRevision=function(revs,inscription) {
 };
 
 
-
 var createDocument=function(opts) {
 	opts=opts||{};
 	var doc={name:opts.name};
@@ -60,9 +59,10 @@ var createDocument=function(opts) {
 		if (!hasVersion(ver)) return null;
 
 		for (var i=0;i<reverts.length;i++) {
-			var revs=reverts[i][1][segid];
+			var revs=reverts[i].reverts[segid];
+
 			if (revs) inscription=applyMutation(revs, inscription);
-			if (reverts[i][0]==ver) break;
+			if (reverts[i].version==ver) break;
 		}
 		return inscription;
 	}
@@ -86,9 +86,7 @@ var createDocument=function(opts) {
 
 		}
 
-		// save reverse and forward revision
-		var forward=mutationlayer.markups;
-		reverts.push([version, segreverts, forward]);
+		reverts.push({version:version, reverts:segreverts, revisions:mutationlayer.markups});
 		version=generateVersion();
 	}
 
@@ -103,7 +101,7 @@ var createDocument=function(opts) {
 
 	var hasVersion=function(version) {
 		if (version===doc.version) return true;
-		return reverts.filter(function(r){return r[0]===version}).length==1;
+		return reverts.filter(function(r){return r.version===version}).length==1;
 	}
 
 	doc.get=get;

@@ -88,11 +88,11 @@ var createLayer=function(doc,opts) {
 			var markups=_markups[segid];
 
 			for (var i=0;i<reverts.length;i++) {
-				var forward=reverts[i][2][segid];
+				var forward=reverts[i].revisions[segid];
 				if (forward) {
 					for (var j=0;j<markups.length;j++)	markups[j]=adjustOffset(forward, markups[j]);
 				}
-				if (reverts[i][0]==version) break;
+				if (reverts[i].version==version) break;
 			}
 
 		}
