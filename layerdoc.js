@@ -63,8 +63,8 @@ var createLayer=function(doc,opts) {
 		return out;
 	}
 
-	var getInscription=function(segid,m) {
-		var inscription=doc.get(segid);
+	var getInscription=function(segid,m,version) {
+		var inscription=doc.get(segid,version);
 		if (typeof inscription==="undefined") return "";
 		return inscription.substr(m[0],m[1]);
 	}
@@ -76,36 +76,80 @@ var createLayer=function(doc,opts) {
 	return layer;
 }
 
+//convert revert and revision back and forth
+var revertRevision=function(revs,inscription) {
+	var reverts=[], offset=0;
+	revs.sort(function(m1,m2){return m1[0]-m2[0];});
+	revs.map(function(r){
+		var newinscription="";
+		var	m=JSON.parse(JSON.stringify(r));
+		var newtext=inscription.substr(r[0],r[1]);
+		m[0]+=offset;
+		var text=m[2].t||"";
+		m[1]=text.length;
+		m[2].t=newtext;
+		offset+=m[1]-newtext.length;
+		reverts.push(m);
+	});
+	reverts.sort(function(a,b){return b[0]-a[0];});
+	return reverts;
+};
+
+var migrate=function(markuplayer) {
+
+}
 
 
 var createDocument=function(opts) {
 	opts=opts||{};
-	var doc={name:opts.name,version:generateVersion()};
+	var doc={name:opts.name};
 	var segs={};
+	var reverts=[];  /* revert to old version, [ version, invert_revisions ]  */
 	var ndoc=0;
+	var version=generateVersion();
 	
 	Object.defineProperty(doc,'ndoc',{get:function(){return ndoc}});
+	Object.defineProperty(doc,'version',{get:function(){return version}});
 
-	var get=function(segid) {
-		return segs[segid];
+	var applyMutation=function(revisions,text){
+		revisions.map(function(r){
+			text=text.substring(0,r[0])+(r[2].t||"")+text.substring(r[0]+r[1]);
+		});
+		return text;
+	}
+
+	var get=function(segid,version) {
+		if (typeof version=="undefined" || version===doc.version) return segs[segid];
+		var inscription=segs[segid];
+
+		for (var i=0;i<reverts.length;i++) {
+			var revs=reverts[i][1][segid];
+			if (revs) inscription=applyMutation(revs, inscription);
+			if (reverts[i][0]==version) break;
+		}
+		return inscription;
 	}
 
 	var evolve=function(mutationlayer) {
-		var applyMutation=function(revisions,text){
-			revisions.map(function(r){
-				text=text.substring(0,r[0])+r[2].t+text.substring(r[0]+r[1]);
-			});
-			return text;
+		if (!mutationlayer.mutate) {
+			throw "not a mutation layer";
 		}
 
+		var segreverts={};
 		for (var segid in mutationlayer.markups) {
 			var revisions=mutationlayer.markups[segid];
+			var oldinscription=doc.get(segid);
+			segreverts[segid]=revertRevision(revisions,oldinscription);
+
 			revisions.sort(function(a,b){return b[0]-a[0]});//start from end
 			
-			var newtext=applyMutation(revisions,doc.get(segid));
+			var newtext=applyMutation(revisions,oldinscription);
 			if (!segs[segid]) throw("text to set doesn't exists",segid);
 			segs[segid]=newtext;
 		}
+
+		reverts.push([version, segreverts]);
+		version=generateVersion();
 	}
 
 	var put=function(id,entry) {
@@ -119,6 +163,7 @@ var createDocument=function(opts) {
 	doc.get=get;
 	doc.put=put;
 	doc.evolve=evolve;
+	doc.migrate=migrate;
 	return doc;
 }
 
