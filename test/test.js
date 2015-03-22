@@ -46,9 +46,14 @@ it("text mutation",function(){
 
 
 it("upgrade markup",function(){
+	var nmarkup=0;
+
+	//old version
+	var inscription=layermarkup.getInscription("1",nmarkup);
+	assert.equal(inscription,"欲觀其妙");
 
 	layermarkup.upgrade();
-	var nmarkup=0;
+	
 	inscription=layermarkup.getInscription("1",nmarkup);
 	assert.equal(inscription,"欲觀其妙");
 

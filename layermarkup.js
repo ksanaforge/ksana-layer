@@ -54,7 +54,7 @@ var createLayer=function(doc,opts) {
 		return out;
 	}
 
-	var getInscription=function(segid,m,version) {
+	var getInscription=function(segid,m) {
 		var inscription=doc.get(segid,version);
 		if (typeof inscription==="undefined") return "";
 		if (typeof m=="number") m=get(segid,m);
