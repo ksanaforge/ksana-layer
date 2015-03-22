@@ -11,70 +11,6 @@ var guid=function() {
 var generateVersion=function() {
 	return guid();
 }
-var createLayer=function(doc,opts) {
-	opts=opts||{};
-	var layer={name:opts.name,doc:doc,markups:{},mutate:opts.mutate,version:doc.version};
-
-	var put=function(segid,start,len,payload) {
-		var m=[start,len,payload];
-		if (!layer.markups[segid]) layer.markups[segid]=[];
-		layer.markups[segid].push(m);
-		return m;
-	}
-	var get=function(segid,n) {
-		var markups=layer.markups[segid];
-		if (!markups) return null;
-		return markups[n];
-	}
-
-	var remove=function(segid,n) {
-		var markups=layer.markups[segid];
-		if (!markups) return null;
-		var r=markups[n];
-		layer.markups[segid]=markups.splice(n,1);
-		return r;
-	}
-
-	var find=function(segid,start,len) { //get all markups has exact same start and len(optional)
-		var out=[];
-		var markups=layer.markups[segid];
-		if (!markups) return out;
-
-		for (var i=0;i<markups.length;i++) {
-			var m=markups[i];
-			if (m[0]===start && len && m[1]==len) {
-				out.push(i);
-			}
-		}
-		return out;
-	}
-
-	var findAt=function(segid,pos) { //get all markups at position
-		var out=[];
-		var markups=layer.markups[segid];
-		if (!markups) return out;
-
-		for (var i=0;i<markups.length;i++) {
-			var m=markups[i];
-			if (pos>=m[0] && pos<m[0]+m[1]) {
-				out.push(i);
-			}
-		}
-		return out;
-	}
-
-	var getInscription=function(segid,m,version) {
-		var inscription=doc.get(segid,version);
-		if (typeof inscription==="undefined") return "";
-		return inscription.substr(m[0],m[1]);
-	}
-	layer.put=put;
-	layer.get=get;
-	layer.find=find;
-	layer.findAt=findAt;
-	layer.getInscription=getInscription;
-	return layer;
-}
 
 //convert revert and revision back and forth
 var revertRevision=function(revs,inscription) {
@@ -95,9 +31,6 @@ var revertRevision=function(revs,inscription) {
 	return reverts;
 };
 
-var migrate=function(markuplayer) {
-
-}
 
 
 var createDocument=function(opts) {
@@ -109,6 +42,7 @@ var createDocument=function(opts) {
 	var version=generateVersion();
 	
 	Object.defineProperty(doc,'ndoc',{get:function(){return ndoc}});
+	Object.defineProperty(doc,'reverts',{get:function(){return reverts}});
 	Object.defineProperty(doc,'version',{get:function(){return version}});
 
 	var applyMutation=function(revisions,text){
@@ -118,14 +52,17 @@ var createDocument=function(opts) {
 		return text;
 	}
 
-	var get=function(segid,version) {
-		if (typeof version=="undefined" || version===doc.version) return segs[segid];
+	var get=function(segid,ver) {
+		if (typeof ver==="undefined" || ver===version) return segs[segid];
+
 		var inscription=segs[segid];
+
+		if (!hasVersion(ver)) return null;
 
 		for (var i=0;i<reverts.length;i++) {
 			var revs=reverts[i][1][segid];
 			if (revs) inscription=applyMutation(revs, inscription);
-			if (reverts[i][0]==version) break;
+			if (reverts[i][0]==ver) break;
 		}
 		return inscription;
 	}
@@ -142,13 +79,16 @@ var createDocument=function(opts) {
 			segreverts[segid]=revertRevision(revisions,oldinscription);
 
 			revisions.sort(function(a,b){return b[0]-a[0]});//start from end
-			
+
 			var newtext=applyMutation(revisions,oldinscription);
 			if (!segs[segid]) throw("text to set doesn't exists",segid);
 			segs[segid]=newtext;
+
 		}
 
-		reverts.push([version, segreverts]);
+		// save reverse and forward revision
+		var forward=mutationlayer.markups;
+		reverts.push([version, segreverts, forward]);
 		version=generateVersion();
 	}
 
@@ -160,10 +100,16 @@ var createDocument=function(opts) {
 		segs[id]=entry;
 		ndoc++;
 	}
+
+	var hasVersion=function(version) {
+		if (version===doc.version) return true;
+		return reverts.filter(function(r){return r[0]===version}).length==1;
+	}
+
 	doc.get=get;
 	doc.put=put;
 	doc.evolve=evolve;
-	doc.migrate=migrate;
+	
 	return doc;
 }
 
@@ -182,4 +128,4 @@ var createFromCSV=function(buf) {
 
 	return layerdoc;
 }
-module.exports={createFromCSV:createFromCSV,createLayer:createLayer}
+module.exports={createFromCSV:createFromCSV};

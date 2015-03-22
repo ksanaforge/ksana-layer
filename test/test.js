@@ -15,7 +15,7 @@ it("create from csv",function(){
 
 it("external markup",function(){
 	var segid="1";
-	layermarkup=API.layerdoc.createLayer(layerdoc);
+	layermarkup=API.layermarkup.create(layerdoc);
 	var m=layermarkup.put(segid,35,4);
 
 	var inscription=layermarkup.getInscription(segid,m);
@@ -29,7 +29,7 @@ it("external markup",function(){
 
 
 it("text mutation",function(){
-	var layermutation=API.layerdoc.createLayer(layerdoc,{mutate:true});
+	var layermutation=API.layermarkup.create(layerdoc,{mutate:true});
 	var segid="1";
 	layermutation.put(segid,17,0,{t:"也"});
 	layermutation.put(segid,8,0,{t:"也"});
@@ -45,11 +45,14 @@ it("text mutation",function(){
 });
 
 
-it("migrate markup",function(){
+it("upgrade markup",function(){
 
-	layerdoc.migrate(layermarkup);
+	layermarkup.upgrade();
+	var nmarkup=0;
+	inscription=layermarkup.getInscription("1",nmarkup);
+	assert.equal(inscription,"欲觀其妙");
 
-	//assert.equal()
 });
+
 
 });
