@@ -61,5 +61,15 @@ it("upgrade markup",function(){
 
 });
 
+it("serialized",function(){
+
+	var json=layermarkup.exportJSON();
+	var layermarkup2=API.layermarkup.create(layerdoc);
+	layermarkup2.importJSON(json);
+
+	var inscription=layermarkup2.inscriptionOf(m1);
+	assert.equal(inscription,"欲觀其妙");
+})
+
 
 });

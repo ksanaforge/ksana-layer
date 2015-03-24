@@ -11,12 +11,12 @@ var generateUUID=function() {
 
 var createLayer=function(doc,opts) {
 	opts=opts||{};
-	var layer={name:opts.name,doc:doc,mutate:opts.mutate};
-	var version=doc.version;
+	var layer={name:opts.name||"noname",doc:doc};
+	var _version=doc.version;
 	var _markups={}; //need to serialized
 	var segidOfuuid={}; //key uuid, value seg
 
-	Object.defineProperty(layer,'version',{get:function(){return version}});
+	Object.defineProperty(layer,'version',{get:function(){return _version}});
 	Object.defineProperty(layer,'markups',{get:function(){return _markups}});
 
 	var createMarkup=function(segid,start,len,payload) {
@@ -33,7 +33,7 @@ var createLayer=function(doc,opts) {
 		var segid=segidOfuuid[uuid];
 		var markup=findMarkup(uuid);
 		
-		var ins=layer.doc.get(segid,layer.version);
+		var ins=layer.doc.get(segid,_version);
 		if (typeof ins==="undefined") return "";
 		return ins.substr(markup[0],markup[1]);
 	}
@@ -68,7 +68,7 @@ var createLayer=function(doc,opts) {
 	}
 	var upgrade=function(ver) {	 // upgrade markups to lastest version of doc
 		if (!ver) ver=doc.version;
-		if (ver===version) return; 
+		if (ver===_version) return; 
 
 		var reverts=layer.doc.reverts;
 		for (var segid in _markups) {
@@ -80,17 +80,46 @@ var createLayer=function(doc,opts) {
 				if (forward) {
 					for (var j=0;j<markups.length;j++)	markups[j]=adjustOffset(forward, markups[j]);
 				}
-				if (reverts[i].version==version) break;
+				if (reverts[i].version==_version) break;
 			}
-
 		}
-		version=doc.version;
+		_version=doc.version;
+	}
+	var exportJSON=function() {
+		return {
+			name:layer.name
+			,version:_version
+			,markups:_markups
+		}
+	}
+
+	var _rebuildSegidOfuuid=function() {
+		segidOfuuid={};
+		for (var segid in _markups) {
+			var M=_markups[segid];
+			for (var i=0;i<M.length;i++) {
+				segidOfuuid[M[i][3]]=segid;
+			}
+		}
+	}
+	var importJSON=function(json) {
+		if (!json || typeof json.name!=="string" || typeof json.markups !=="object") {
+			throw "invalid json to import";
+		}
+
+		layer.name=json.name;
+		_version=json.version;
+		_markups=json.markups;
+		_rebuildSegidOfuuid();
 	}
 
 	layer.findMarkup=findMarkup;
 	layer.inscriptionOf=inscriptionOf;
 	layer.upgrade=upgrade;
 	layer.createMarkup=createMarkup;
+	layer.importJSON=importJSON;
+	layer.exportJSON=exportJSON;
+
 	return layer;
 }
 
