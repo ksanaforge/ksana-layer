@@ -58,7 +58,7 @@ var createDocument=function(opts) {
 
 		if (!hasVersion(ver)) return null;
 
-		for (var i=0;i<reverts.length;i++) {
+		for (var i=reverts.length-1;i>=0;i--) {
 			var revs=reverts[i].reverts[segid];
 
 			if (revs) inscription=applyMutation(revs, inscription);

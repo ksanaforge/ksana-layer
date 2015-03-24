@@ -23,7 +23,6 @@ it("external markup",function(){
 	assert.equal(inscription,"欲觀其妙");
 	segid="42";
 	m2=layermarkup.createMarkup(segid,25,5);
-
 	inscription=layermarkup.inscriptionOf(m2);
 	assert.equal(inscription,"沖氣以為和");
 });

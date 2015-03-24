@@ -4,8 +4,8 @@ var generateUUID=function() {
 	var uuid=Date.now() - Date.parse("2015/3/1");
 	if (uuid==lastuuid) {
 		uuid+=1;
-		lastuuid=uuid;
 	}
+	lastuuid=uuid;
 	return uuid;
 }
 
@@ -72,9 +72,7 @@ var createLayer=function(doc,opts) {
 
 		var reverts=layer.doc.reverts;
 		for (var segid in _markups) {
-
 			var markups=_markups[segid];
-
 			for (var i=0;i<reverts.length;i++) {
 				var forward=reverts[i].revisions[segid];
 				if (forward) {
