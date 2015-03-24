@@ -2,12 +2,11 @@
 
 var layerdoc=require("./layerdoc");
 var createFromKdb=function(kdb) {
-	var doc=layerdoc.create();
-	doc.kdb=kdb;
-	doc._setndoc(kdb.get("meta").segcount);
-	doc._setversion(Date.parse(kdb.get("meta").builddate));
+	var meta=kdb.get("meta");
+
+	var doc=layerdoc.create({name:meta.name,ndoc:meta.segcount,version:Date.parse(meta.builddate)});
 	var parentget=doc.get;
-	
+
 	doc.put=function() {
 		throw "cannot put new segment, data is backed by kdb";
 	}
@@ -38,8 +37,14 @@ var createFromKdb=function(kdb) {
 
 	doc.getAsync=function(segname,cb,ver) {
 		this.prefetch(segname,function(){
-			cb(parentget(segname,ver));
+			var res=parentget(segname,ver);
+			if (cb) cb(res);
 		})
+	}
+
+	doc.has=function(segname) {
+		var segnames=kdb.get("segnames");
+		return segnames.indexOf(segname)>-1;
 	}
 	return doc;
 }

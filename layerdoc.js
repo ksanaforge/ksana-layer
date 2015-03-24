@@ -34,13 +34,17 @@ var revertRevision=function(revs,inscription) {
 
 var createDocument=function(opts) {
 	opts=opts||{};
-	var doc={name:opts.name};
+	var doc={name:opts.name||"noname"};
+
 	var segs={};
 	var reverts=[];  /* revert to old version, [ version, invert_revisions ]  */
-	var ndoc=0;
-	var version=generateVersion();
+	var ndoc=opts.ndoc||0;
+
+	var version=opts.version||generateVersion();
 	
+
 	Object.defineProperty(doc,'ndoc',{get:function(){return ndoc}});
+	//Object.defineProperty(doc,'name',{get:function(){return name}});
 	Object.defineProperty(doc,'reverts',{get:function(){return reverts}});
 	Object.defineProperty(doc,'version',{get:function(){return version}});
 
@@ -69,7 +73,7 @@ var createDocument=function(opts) {
 	}
 
 	var getAsync=function(segid,cb,ver) { //virtual method
-		cb(get(segid,ver));
+		if (cb) cb(get(segid,ver));
 	}
 	var prefetch=function(segments,cb) { //virtual method
 		cb();
@@ -105,12 +109,7 @@ var createDocument=function(opts) {
 		ndoc++;
 	}
 
-	var _setndoc=function(_ndoc) {
-		ndoc=_ndoc;
-	}
-	var _setversion=function(_version) {
-		version=_version;
-	}
+
 	var _segs=function() {
 		return segs;
 	}
@@ -120,14 +119,19 @@ var createDocument=function(opts) {
 		return reverts.filter(function(r){return r.version===version}).length==1;
 	}
 
+	var has=function(segname) {
+		return !!segs[segname];
+	}
+
 	doc.get=get;
 	doc.put=put;
 	doc.evolve=evolve;
 	doc.prefetch=prefetch;
 
-	doc._setndoc=_setndoc;
-	doc._setversion=_setversion;
 	doc._segs=_segs;
+	doc.getAsync=getAsync;
+	doc.has=has;
+
 	return doc;
 }
 

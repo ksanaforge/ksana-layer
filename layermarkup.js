@@ -23,7 +23,7 @@ var createLayer=function(doc,opts) {
 		var uuid=generateUUID();
 		var markup=[start,len,payload,uuid];
 		segidOfuuid[uuid]=segid;
-
+		
 		if (!_markups[segid]) _markups[segid]=[];
 		_markups[segid].push(markup);
 		return uuid;

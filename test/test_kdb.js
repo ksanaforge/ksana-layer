@@ -33,10 +33,6 @@ it("get async inscription",function(done){
 
 		done();
 	});
-	
-
-
-	
 });
 
 });
