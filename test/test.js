@@ -31,8 +31,12 @@ it("external markup",function(){
 it("text mutation",function(done){
 	var layermutation=API.layermarkup.create(layerdoc,{mutate:true});
 	var segid="1";
-	layermutation.createMarkup(segid,17,0,{t:"也"});
-	layermutation.createMarkup(segid,8,0,{t:"也"});
+	var m1=layermutation.createMarkup(segid,17,0,{t:"也"});
+	var m2=layermutation.createMarkup(segid,8,0,{t:"也"});
+
+
+	assert.equal(m1%2,0);  //always even number
+	assert.equal(m1%2,0);
 
 	var oldversion=layerdoc.version;
 	layerdoc.evolve(layermutation.markups,function(){

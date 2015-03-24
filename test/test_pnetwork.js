@@ -35,6 +35,9 @@ it("create span in pnetwork",function(){
 	span1=pn.createSpan("shijin","蒹葭",15,4);
 	
 	assert.equal(!!span1,true);	
+
+	span2=pn.createSpan("daodejin","1",15,4);
+
 });
 
 

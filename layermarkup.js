@@ -1,9 +1,11 @@
 /* markup layer based on doc, mutate==true for mutating markup*/
 var lastuuid=0;
-var generateUUID=function() {
+var generateUUID=function() { //even number
 	var uuid=Date.now() - Date.parse("2015/3/1");
+	if (uuid % 2==1) uuid++;
+
 	if (uuid==lastuuid) {
-		uuid+=1;
+		uuid+=2;
 	}
 	lastuuid=uuid;
 	return uuid;
@@ -11,7 +13,7 @@ var generateUUID=function() {
 
 var createLayer=function(doc,opts) {
 	opts=opts||{};
-	var layer={name:opts.name||"noname",doc:doc};
+	var layer={name:opts.name||"noname",doc:doc,seq:opts.seq};
 	var _version=doc.version;
 	var _markups={}; //need to serialized
 	var segidOfuuid={}; //key uuid, value seg
@@ -23,7 +25,7 @@ var createLayer=function(doc,opts) {
 		var uuid=generateUUID();
 		var markup=[start,len,payload,uuid];
 		segidOfuuid[uuid]=segid;
-		
+
 		if (!_markups[segid]) _markups[segid]=[];
 		_markups[segid].push(markup);
 		return uuid;

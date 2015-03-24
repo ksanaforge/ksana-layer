@@ -8,13 +8,19 @@
 
 var createLayer=require("./layermarkup").create;
 
-var createPNetwork=function() {
+/*
+   SPAN =  markupid,maxdb,0  //even number
+   PCODE=  id,1              //odd number
+*/
+var createPNetwork=function(opts) {
+	opts=opts||{};
 	var layers={};
 	var network={};
+	var maxdb=opts.maxdb||128;
 
 	var addDoc=function(_docs) {
 		if (typeof _docs[0]=="undefined") _docs=[_docs];
-		_docs.map(function(d){layers[d.name]=createLayer(d);});
+		_docs.map(function(d,idx){layers[d.name]=createLayer(d,{seq:idx});});
 	}
 
 	var createSpan=function(dbname,segid,start,len,payload) {
@@ -28,8 +34,7 @@ var createPNetwork=function() {
 			console.error("no such segid "+segid);
 			return null;			
 		}
-
-		return layer.createMarkup(segid,start,len,payload);
+		return layer.createMarkup(segid,start,len,payload)*maxdb+layer.seq;
 	}
 
 	network.lasterror="";
