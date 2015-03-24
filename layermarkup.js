@@ -1,15 +1,5 @@
 /* markup layer based on doc, mutate==true for mutating markup*/
-var lastuuid=0;
-var generateUUID=function() { //even number
-	var uuid=Date.now() - Date.parse("2015/3/1");
-	if (uuid % 2==1) uuid++;
-
-	if (uuid==lastuuid) {
-		uuid+=2;
-	}
-	lastuuid=uuid;
-	return uuid;
-}
+var UUID=require("./uuid");
 
 var createLayer=function(doc,opts) {
 	opts=opts||{};
@@ -22,7 +12,7 @@ var createLayer=function(doc,opts) {
 	Object.defineProperty(layer,'markups',{get:function(){return _markups}});
 
 	var createMarkup=function(segid,start,len,payload) {
-		var uuid=generateUUID();
+		var uuid=UUID();
 		var markup=[start,len,payload,uuid];
 		segidOfuuid[uuid]=segid;
 

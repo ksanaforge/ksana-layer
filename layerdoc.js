@@ -1,17 +1,4 @@
-var guid=function() {
-  var s4=function() {
-    return Math.floor((1 + Math.random()) * 0x10000)
-      .toString(16)
-      .substring(1);
-  }
-  return s4() + s4() + '-' + s4() + '-' + s4() + '-' +
-    s4() + '-' + s4() + s4() + s4();
-}
-
-var generateVersion=function() {
-	return Date.now() ;
-}
-
+var UUID=require("./uuid");
 //convert revert and revision back and forth
 var revertRevision=function(revs,inscription) {
 	var reverts=[], offset=0;
@@ -40,7 +27,7 @@ var createDocument=function(opts) {
 	var reverts=[];  /* revert to old version, [ version, invert_revisions ]  */
 	var ndoc=opts.ndoc||0;
 
-	var version=opts.version||generateVersion();
+	var version=opts.version||UUID();
 	
 
 	Object.defineProperty(doc,'ndoc',{get:function(){return ndoc}});
@@ -95,7 +82,7 @@ var createDocument=function(opts) {
 			}
 
 			reverts.push({version:version, reverts:segreverts, revisions:JSON.parse(JSON.stringify(markups)) });
-			version=generateVersion()+1; //make sure get newer version
+			version=UUID();
 			if (cb) cb();
 		})
 	}
