@@ -38,6 +38,17 @@ var createLayer=function(doc,opts) {
 		return ins.substr(markup[0],markup[1]);
 	}
 
+	var inscriptionOfAsync=function(uuid,cb) { //backed by kdb
+		var segid=segidOfuuid[uuid];
+		var markup=findMarkup(uuid);
+		
+		var ins=layer.doc.getAsync(segid,function(ins){
+			if (typeof ins==="undefined") cb("");
+			cb(ins.substr(markup[0],markup[1]));
+		},_version);		
+	}
+
+
 	var findMarkup=function(uuid) {
 		var segid=segidOfuuid[uuid];
 		var markups=_markups[segid]||[];
@@ -113,6 +124,7 @@ var createLayer=function(doc,opts) {
 
 	layer.findMarkup=findMarkup;
 	layer.inscriptionOf=inscriptionOf;
+	layer.inscriptionOfAsync=inscriptionOfAsync;
 	layer.upgrade=upgrade;
 	layer.createMarkup=createMarkup;
 	layer.importJSON=importJSON;

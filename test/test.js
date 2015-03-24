@@ -28,20 +28,23 @@ it("external markup",function(){
 });
 
 
-it("text mutation",function(){
+it("text mutation",function(done){
 	var layermutation=API.layermarkup.create(layerdoc,{mutate:true});
 	var segid="1";
 	layermutation.createMarkup(segid,17,0,{t:"也"});
 	layermutation.createMarkup(segid,8,0,{t:"也"});
 
 	var oldversion=layerdoc.version;
-	layerdoc.evolve(layermutation.markups);
+	layerdoc.evolve(layermutation.markups,function(){
+		var newtext=layerdoc.get("1");
+		assert.equal(newtext.substr(0,19),"道，可道，非常道也；名，可名，非常名也");
 
-	var newtext=layerdoc.get("1");
-	assert.equal(newtext.substr(0,19),"道，可道，非常道也；名，可名，非常名也");
+		var oldtext=layerdoc.get("1",oldversion).substr(0,17);
+		assert.equal(oldtext,"道，可道，非常道；名，可名，非常名")
 
-	var oldtext=layerdoc.get("1",oldversion).substr(0,17);
-	assert.equal(oldtext,"道，可道，非常道；名，可名，非常名")
+		done();
+	});
+
 });
 
 

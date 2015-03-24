@@ -44,6 +44,7 @@ var createDocument=function(opts) {
 	Object.defineProperty(doc,'reverts',{get:function(){return reverts}});
 	Object.defineProperty(doc,'version',{get:function(){return version}});
 
+
 	var applyMutation=function(revisions,text){
 		revisions.map(function(r){
 			text=text.substring(0,r[0])+(r[2].t||"")+text.substring(r[0]+r[1]);
@@ -52,9 +53,9 @@ var createDocument=function(opts) {
 	}
 
 	var get=function(segid,ver) {
-		if (typeof ver==="undefined" || ver===version) return segs[segid];
-
 		var inscription=segs[segid];
+
+		if (typeof ver==="undefined" || ver===version) return segs[segid];
 
 		if (!hasVersion(ver)) return null;
 
@@ -67,24 +68,32 @@ var createDocument=function(opts) {
 		return inscription;
 	}
 
-	var evolve=function(markups) {
+	var getAsync=function(segid,cb,ver) { //virtual method
+		cb(get(segid,ver));
+	}
+	var prefetch=function(segments,cb) { //virtual method
+		cb();
+	}
 
-		var segreverts={};
-		for (var segid in markups) {
-			var revisions=markups[segid];
-			var oldinscription=doc.get(segid);
-			segreverts[segid]=revertRevision(revisions,oldinscription);
+	var evolve=function(markups,cb) {
+		prefetch(Object.keys(markups),function(){
+			var segreverts={};
+			for (var segid in markups) {
+				var revisions=markups[segid];
+				var oldinscription=get(segid);
+				segreverts[segid]=revertRevision(revisions,oldinscription);
 
-			revisions.sort(function(a,b){return b[0]-a[0]});//start from end
+				revisions.sort(function(a,b){return b[0]-a[0]});//start from end
 
-			var newtext=applyMutation(revisions,oldinscription);
-			if (!segs[segid]) throw("text to set doesn't exists",segid);
-			segs[segid]=newtext;
+				var newtext=applyMutation(revisions,oldinscription);
+				if (!segs[segid]) throw("text to set doesn't exists",segid);
+				segs[segid]=newtext;
+			}
 
-		}
-
-		reverts.push({version:version, reverts:segreverts, revisions:JSON.parse(JSON.stringify(markups)) });
-		version=generateVersion()+1; //make sure get newer version
+			reverts.push({version:version, reverts:segreverts, revisions:JSON.parse(JSON.stringify(markups)) });
+			version=generateVersion()+1; //make sure get newer version
+			if (cb) cb();
+		})
 	}
 
 	var put=function(id,entry) {
@@ -96,6 +105,16 @@ var createDocument=function(opts) {
 		ndoc++;
 	}
 
+	var _setndoc=function(_ndoc) {
+		ndoc=_ndoc;
+	}
+	var _setversion=function(_version) {
+		version=_version;
+	}
+	var _segs=function() {
+		return segs;
+	}
+
 	var hasVersion=function(version) {
 		if (version===doc.version) return true;
 		return reverts.filter(function(r){return r.version===version}).length==1;
@@ -104,7 +123,11 @@ var createDocument=function(opts) {
 	doc.get=get;
 	doc.put=put;
 	doc.evolve=evolve;
-	
+	doc.prefetch=prefetch;
+
+	doc._setndoc=_setndoc;
+	doc._setversion=_setversion;
+	doc._segs=_segs;
 	return doc;
 }
 
@@ -123,4 +146,4 @@ var createFromCSV=function(buf) {
 
 	return layerdoc;
 }
-module.exports={createFromCSV:createFromCSV};
+module.exports={createFromCSV:createFromCSV,create:createDocument};
