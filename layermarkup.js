@@ -1,64 +1,52 @@
 /* markup layer based on doc, mutate==true for mutating markup*/
+var lastuuid=0;
+var generateUUID=function() {
+	var uuid=Date.now() - Date.parse("2015/3/1");
+	if (uuid==lastuuid) {
+		uuid+=1;
+		lastuuid=uuid;
+	}
+	return uuid;
+}
 
 var createLayer=function(doc,opts) {
 	opts=opts||{};
 	var layer={name:opts.name,doc:doc,mutate:opts.mutate};
 	var version=doc.version;
-	var _markups={};
+	var _markups={}; //need to serialized
+	var segidOfuuid={}; //key uuid, value seg
+
 	Object.defineProperty(layer,'version',{get:function(){return version}});
 	Object.defineProperty(layer,'markups',{get:function(){return _markups}});
 
-	var put=function(segid,start,len,payload) {
-		var m=[start,len,payload];
+	var createMarkup=function(segid,start,len,payload) {
+		var uuid=generateUUID();
+		var markup=[start,len,payload,uuid];
+		segidOfuuid[uuid]=segid;
+
 		if (!_markups[segid]) _markups[segid]=[];
-		_markups[segid].push(m);
-		return m;
-	}
-	var get=function(segid,n) {
-		var markups=_markups[segid];
-		if (!markups) return null;
-		return markups[n];
+		_markups[segid].push(markup);
+		return uuid;
 	}
 
-	var remove=function(segid,n) {
-		var markups=_markups[segid];
-		if (!markups) return null;
-		var r=markups[n];
-		_markups[segid]=markups.splice(n,1);
-		return r;
+	var inscriptionOf=function(uuid) {
+		var segid=segidOfuuid[uuid];
+		var markup=findMarkup(uuid);
+		
+		var ins=layer.doc.get(segid,layer.version);
+		if (typeof ins==="undefined") return "";
+		return ins.substr(markup[0],markup[1]);
 	}
 
-	var find=function(segid,start,len) { //get all markups has exact same start and len(optional)
-		var out=[];
-		var markups=_markups[segid];
-		if (!markups) return out;
+	var findMarkup=function(uuid) {
+		var segid=segidOfuuid[uuid];
+		var markups=_markups[segid]||[];
 		for (var i=0;i<markups.length;i++) {
-			var m=markups[i];
-			if (m[0]===start && len && m[1]==len) {
-				out.push(i);
+			if (markups[i][3]===uuid) {
+				return markups[i];
 			}
 		}
-		return out;
-	}
-
-	var findAt=function(segid,pos) { //get all markups at position
-		var out=[];
-		var markups=_markups[segid];
-		if (!markups) return out;
-		for (var i=0;i<markups.length;i++) {
-			var m=markups[i];
-			if (pos>=m[0] && pos<m[0]+m[1]) {
-				out.push(i);
-			}
-		}
-		return out;
-	}
-
-	var getInscription=function(segid,m) {
-		var inscription=doc.get(segid,version);
-		if (typeof inscription==="undefined") return "";
-		if (typeof m=="number") m=get(segid,m);
-		return inscription.substr(m[0],m[1]);
+		return null;
 	}
 
 	var adjustOffset=function(revs,m) {
@@ -76,7 +64,7 @@ var createLayer=function(doc,opts) {
 		if (deleted) { //len=-n value if not upgradable since last n version
 			if (m[1]>=0) l=-1; else l=m[1]-1;
 		}
-		return [s,l,m[2]];
+		return [s,l,m[2],m[3]];
 	}
 	var upgrade=function(ver) {	 // upgrade markups to lastest version of doc
 		if (!ver) ver=doc.version;
@@ -99,12 +87,10 @@ var createLayer=function(doc,opts) {
 		version=doc.version;
 	}
 
-	layer.put=put;
-	layer.get=get;
-	layer.find=find;
-	layer.findAt=findAt;
-	layer.getInscription=getInscription;
+	layer.findMarkup=findMarkup;
+	layer.inscriptionOf=inscriptionOf;
 	layer.upgrade=upgrade;
+	layer.createMarkup=createMarkup;
 	return layer;
 }
 

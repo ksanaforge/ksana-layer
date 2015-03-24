@@ -9,7 +9,7 @@ var guid=function() {
 }
 
 var generateVersion=function() {
-	return guid();
+	return Date.now() ;
 }
 
 //convert revert and revision back and forth
@@ -67,14 +67,11 @@ var createDocument=function(opts) {
 		return inscription;
 	}
 
-	var evolve=function(mutationlayer) {
-		if (!mutationlayer.mutate) {
-			throw "not a mutation layer";
-		}
+	var evolve=function(markups) {
 
 		var segreverts={};
-		for (var segid in mutationlayer.markups) {
-			var revisions=mutationlayer.markups[segid];
+		for (var segid in markups) {
+			var revisions=markups[segid];
 			var oldinscription=doc.get(segid);
 			segreverts[segid]=revertRevision(revisions,oldinscription);
 
@@ -86,8 +83,8 @@ var createDocument=function(opts) {
 
 		}
 
-		reverts.push({version:version, reverts:segreverts, revisions:mutationlayer.markups});
-		version=generateVersion();
+		reverts.push({version:version, reverts:segreverts, revisions:JSON.parse(JSON.stringify(markups)) });
+		version=generateVersion()+1; //make sure get newer version
 	}
 
 	var put=function(id,entry) {
