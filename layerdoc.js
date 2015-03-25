@@ -77,7 +77,7 @@ var createDocument=function(opts) {
 				revisions.sort(function(a,b){return b[0]-a[0]});//start from end
 
 				var newtext=applyMutation(revisions,oldinscription);
-				if (!segs[segid]) throw("text to set doesn't exists",segid);
+				if (!segs[segid]) throw("text to set doesn't exist",segid);
 				segs[segid]=newtext;
 			}
 

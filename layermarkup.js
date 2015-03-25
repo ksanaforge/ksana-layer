@@ -13,7 +13,9 @@ var createLayer=function(doc,opts) {
 
 	var createMarkup=function(segid,start,len,payload) {
 		var uuid=UUID();
-		var markup=[start,len,payload,uuid];
+		payload=payload||{};
+		payload.uuid=uuid;
+		var markup=[start,len,payload];
 		segidOfuuid[uuid]=segid;
 
 		if (!_markups[segid]) _markups[segid]=[];
@@ -33,7 +35,7 @@ var createLayer=function(doc,opts) {
 	var inscriptionOfAsync=function(uuid,cb) { //backed by kdb
 		var segid=segidOfuuid[uuid];
 		var markup=findMarkup(uuid);
-		
+
 		var ins=layer.doc.getAsync(segid,function(ins){
 			if (typeof ins==="undefined") cb("");
 			cb(ins.substr(markup[0],markup[1]));
@@ -45,7 +47,7 @@ var createLayer=function(doc,opts) {
 		var segid=segidOfuuid[uuid];
 		var markups=_markups[segid]||[];
 		for (var i=0;i<markups.length;i++) {
-			if (markups[i][3]===uuid) {
+			if (markups[i][2].uuid===uuid) {
 				return markups[i];
 			}
 		}
@@ -67,7 +69,7 @@ var createLayer=function(doc,opts) {
 		if (deleted) { //len=-n value if not upgradable since last n version
 			if (m[1]>=0) l=-1; else l=m[1]-1;
 		}
-		return [s,l,m[2],m[3]];
+		return [s,l,m[2]];
 	}
 	var upgrade=function(ver) {	 // upgrade markups to lastest version of doc
 		if (!ver) ver=doc.version;
@@ -99,7 +101,7 @@ var createLayer=function(doc,opts) {
 		for (var segid in _markups) {
 			var M=_markups[segid];
 			for (var i=0;i<M.length;i++) {
-				segidOfuuid[M[i][3]]=segid;
+				segidOfuuid[M[i][2].uuid]=segid;
 			}
 		}
 	}
