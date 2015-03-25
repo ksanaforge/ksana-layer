@@ -110,7 +110,7 @@ var createPNetwork=function(opts) {
 		if (!layer) return null;
 
 		var code=Math.floor(scode /maxdb);
-		return {layer:layer,code:code,markup:layer.findMarkup(code)};
+		return {layer:layer,code:code,markup:layer.get(code)};
 	}
 
 	var get=function(code) {

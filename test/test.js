@@ -13,6 +13,10 @@ it("create from csv",function(){
 	assert.equal(layerdoc.ndoc,82);
 });
 
+it("check implict markup",function(){
+	assert.equal(layerdoc.rawtags["1"].length,3);
+	assert.equal(layerdoc.rawtags["81"].length,2);
+})
 
 it("external markup",function(){
 	var segid="1";
@@ -49,7 +53,10 @@ it("text mutation",function(done){
 		done();
 	});
 
+
+
 });
+
 
 
 
@@ -75,7 +82,7 @@ it("serialized",function(){
 
 	var inscription=layermarkup2.inscriptionOf(m1);
 	assert.equal(inscription,"欲觀其妙");
-})
+});
 
 
 });

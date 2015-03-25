@@ -1,9 +1,9 @@
-/* markup layer based on doc, mutate==true for mutating markup*/
+/* markup layer based on doc*/
 var UUID=require("./uuid");
 
 var createLayer=function(doc,opts) {
 	opts=opts||{};
-	var layer={name:opts.name||"noname",doc:doc,seq:opts.seq};
+	var layer={name:doc.name||"noname",doc:doc,seq:opts.seq};
 	var _version=doc.version;
 	var _markups={}; //need to serialized
 	var segidOfuuid={}; //key uuid, value seg
@@ -25,7 +25,7 @@ var createLayer=function(doc,opts) {
 
 	var inscriptionOf=function(uuid) {
 		var segid=segidOfuuid[uuid];
-		var markup=findMarkup(uuid);
+		var markup=get(uuid);
 		
 		var ins=layer.doc.get(segid,_version);
 		if (typeof ins==="undefined") return "";
@@ -34,7 +34,7 @@ var createLayer=function(doc,opts) {
 
 	var inscriptionOfAsync=function(uuid,cb) { //backed by kdb
 		var segid=segidOfuuid[uuid];
-		var markup=findMarkup(uuid);
+		var markup=get(uuid);
 
 		var ins=layer.doc.getAsync(segid,function(ins){
 			if (typeof ins==="undefined") cb("");
@@ -43,7 +43,7 @@ var createLayer=function(doc,opts) {
 	}
 
 
-	var findMarkup=function(uuid) {
+	var get=function(uuid) {
 		var segid=segidOfuuid[uuid];
 		var markups=_markups[segid]||[];
 		for (var i=0;i<markups.length;i++) {
@@ -75,15 +75,15 @@ var createLayer=function(doc,opts) {
 		if (!ver) ver=doc.version;
 		if (ver===_version) return; 
 
-		var reverts=layer.doc.reverts;
+		var versions=layer.doc.versions;
 		for (var segid in _markups) {
 			var markups=_markups[segid];
-			for (var i=0;i<reverts.length;i++) {
-				var forward=reverts[i].revisions[segid];
+			for (var i=0;i<versions.length;i++) {
+				var forward=versions[i].revisions[segid];
 				if (forward) {
 					for (var j=0;j<markups.length;j++)	markups[j]=adjustOffset(forward, markups[j]);
 				}
-				if (reverts[i].version==_version) break;
+				if (versions[i].version==_version) break;
 			}
 		}
 		_version=doc.version;
@@ -116,7 +116,7 @@ var createLayer=function(doc,opts) {
 		_rebuildSegidOfuuid();
 	}
 
-	layer.findMarkup=findMarkup;
+	layer.get=get;
 	layer.inscriptionOf=inscriptionOf;
 	layer.inscriptionOfAsync=inscriptionOfAsync;
 	layer.upgrade=upgrade;

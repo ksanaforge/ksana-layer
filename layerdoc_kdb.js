@@ -4,7 +4,7 @@ var layerdoc=require("./layerdoc");
 var createFromKdb=function(kdb) {
 	var meta=kdb.get("meta");
 
-	var doc=layerdoc.create({name:meta.name,ndoc:meta.segcount,version:Date.parse(meta.builddate)});
+	var doc=layerdoc.create({name:meta.name,segnames:kdb.get("segnames"),version:Date.parse(meta.builddate)});
 	var parentget=doc.get;
 
 	doc.put=function() {
