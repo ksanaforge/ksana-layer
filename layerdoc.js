@@ -1,21 +1,57 @@
 var UUID=require("./uuid");
+
+
+
+var sortMutation=function(revisions,reverse) { 
+	//apply text mutation "t", then pagebreak "p", finally paragraph merge "m"
+	//each group sort desc by start offset
+	return revisions.sort(function(a,b){
+		var at=(!!a[2].t),bt=(!!b[2].t);
+		var am=(!!a[2].m),bm=(!!b[2].m);
+		var ap=(!!a[2].p),bp=(!!b[2].p);
+		var r=0;
+		if (at && bm || at && bp || ap && bm) r= -1;			
+		else if (am && bp || ap && bt || am && bt) r=  1;
+		else r=b[0]-a[0];
+
+		if (reverse) r=1-r;
+		return r;
+
+	});
+}
 //convert revert and revision back and forth
-var revertRevision=function(revs,inscription) {
+var revertRevision=function(revs,inscription,segid,segreverts) {
 	var reverts=[], offset=0;
-	revs.sort(function(m1,m2){return m1[0]-m2[0];});
+
+	revs=sortMutation(revs,true);  //sort asc by starting offset
+	
 	revs.map(function(r){
 		var newinscription="";
 		var	m=JSON.parse(JSON.stringify(r));
-		var newtext=inscription.substr(r[0],r[1]);
-		m[0]+=offset;
-		var text=m[2].t||"";
-		m[1]=text.length;
-		m[2].t=newtext;
-		delete m[2].uuid;  //uuid is not required
-		offset+=m[1]-newtext.length;
-		reverts.push(m);
+		if (m[2].t) {
+			var newtext=inscription.substr(r[0],r[1]);
+			m[0]+=offset;
+			var text=m[2].t||"";
+			m[1]=text.length;
+			m[2].t=newtext;
+			delete m[2].uuid;  //uuid is not required
+			offset+=m[1]-newtext.length;
+			reverts.push(m);
+		} else if (m[2].p) {
+			var newp=m[2].p; //new seg id
+			if (!segreverts[newp]) segreverts[newp]=[];
+			segreverts[newp].push([m[0],0,{m:segid} ]); //merge with segid
+		} else if (m[2].m) {
+			var oldsegid=m[2].m; //the seg id to be merged with
+			if (!segreverts[oldsegid]) segreverts[oldsegid]=[];
+			segreverts[oldsegid].push([m[0],0,{p:segid} ]); //break oldsegid
+
+		} else throw "incorrect revs format "+r;
 	});
-	reverts.sort(function(a,b){return b[0]-a[0];});
+	//reverts.sort(function(a,b){return b[0]-a[0];}); //sort desc
+
+	reverts=sortMutation(reverts);
+
 	return reverts;
 };
 
@@ -39,9 +75,34 @@ var createDocument=function(opts) {
 	Object.defineProperty(doc,'ndoc',{get:function(){return segnames.length}});
 
 
-	var applyMutation=function(revisions,text){
+	var splitSegment=function(text,breakat,currentSegname,newSegname) {
+		if (segs[newSegname]) {
+			throw "repeated segname";
+		} else {
+			segs[newSegname]=text.substr(breakat);
+			var i=segnames.indexOf(currentSegname);
+			segnames.splice(i,0,newSegname);
+		}
+		return text.substr(0,breakat);
+	}
+	var mergeSegment=function(text,currentSegname,oldSegname) {
+		segs[oldSegname]+=text;
+		
+		//remove currentSeg 
+		var i=segnames.indexOf(currentSegname);
+		segnames.splice(i,1);
+		delete segs[currentSegname];
+		return undefined;
+	}
+	var applyMutation=function(revisions,text,segid){
 		revisions.map(function(r){
-			text=text.substring(0,r[0])+(r[2].t||"")+text.substring(r[0]+r[1]);
+			if (r[2].t) {//text mutation
+				text=text.substring(0,r[0])+(r[2].t||"")+text.substring(r[0]+r[1]);	
+			} else if (r[2].p) { //breaking
+				text=splitSegment(text,r[0],segid,r[2].p);
+			} else if (r[2].m) { //merging
+				text=mergeSegment(text,segid,r[2].m);
+			}
 		});
 		return text;
 	}
@@ -91,22 +152,27 @@ var createDocument=function(opts) {
 		return out;
 
 	}
+
 	var evolve=function(markups,cb) {
+		if (typeof markups.markups!=="undefined") markups=markups.markups; //user supply layer instead of markups
 		prefetch(Object.keys(markups),function(){
 			var segreverts={};
 			for (var segid in markups) {
 				var revisions=markups[segid];
 				var oldinscription=get(segid);
-				segreverts[segid]=revertRevision(revisions,oldinscription);
 
-				revisions.sort(function(a,b){return b[0]-a[0]});//start from end
+				revisions=sortMutation(revisions);
 
-				var newtext=applyMutation(revisions,oldinscription);
+				segreverts[segid]=revertRevision(revisions,oldinscription,segid,segreverts);
 
-				rawtags[segid]=rawtags[segid].map(adjustOffset,revisions);
+				var newtext=applyMutation(revisions,oldinscription,segid);
 
-				if (!segs[segid]) throw("text to set doesn't exist",segid);
-				segs[segid]=newtext;
+				if (rawtags[segid]) rawtags[segid]=rawtags[segid].map(adjustOffset,revisions);
+
+				if (typeof newtext!=="undefined") {
+					if (!segs[segid]) throw("text to set doesn't exist",segid);
+					segs[segid]=newtext;
+				}
 			}
 			var revs=removeUUID(markups);
 
@@ -161,6 +227,8 @@ var createDocument=function(opts) {
 	doc._segs=_segs;
 	doc.getAsync=getAsync;
 	doc.has=has;
+
+	doc._sortMutation=sortMutation;
 
 
 
