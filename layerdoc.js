@@ -28,7 +28,7 @@ var revertRevision=function(revs,inscription,segid,segreverts) {
 	revs.map(function(r){
 		var newinscription="";
 		var	m=JSON.parse(JSON.stringify(r));
-		if (m[2].t) {
+		if (typeof m[2].t!=="undefined") {
 			var newtext=inscription.substr(r[0],r[1]);
 			m[0]+=offset;
 			var text=m[2].t||"";
@@ -96,7 +96,7 @@ var createDocument=function(opts) {
 	}
 	var applyMutation=function(revisions,text,segid){
 		revisions.map(function(r){
-			if (r[2].t) {//text mutation
+			if (typeof r[2].t!=="undefined") {//text mutation
 				text=text.substring(0,r[0])+(r[2].t||"")+text.substring(r[0]+r[1]);	
 			} else if (r[2].p) { //breaking
 				text=splitSegment(text,r[0],segid,r[2].p);
@@ -163,9 +163,9 @@ var createDocument=function(opts) {
 
 				revisions=sortMutation(revisions);
 
-				segreverts[segid]=revertRevision(revisions,oldinscription,segid,segreverts);
-
 				var newtext=applyMutation(revisions,oldinscription,segid);
+
+				segreverts[segid]=revertRevision(revisions,oldinscription,segid,segreverts);
 
 				if (rawtags[segid]) rawtags[segid]=rawtags[segid].map(adjustOffset,revisions);
 

@@ -60,9 +60,7 @@ var createLayer=function(doc,opts) {
 		revs.map(function(rev){
 			if (rev[0]<=s) { //this will affect the offset
 				delta+= (rev[2].t.length-rev[1]);
-			}
-			if (rev[0]<=s && rev[0]+rev[1]>=s+l) {
-				deleted=true;
+				if(rev[0]+rev[1]>=s+l) 	deleted=true;
 			}
 		});
 		s+=delta;
