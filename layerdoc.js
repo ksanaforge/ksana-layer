@@ -77,11 +77,23 @@ var createDocument=function(opts) {
 	Object.defineProperty(doc,'ndoc',{get:function(){return segnames.length}});
 
 
-	var invertSplitSegment=function(text,breakat,newSegname) {
+	var nextVersion=function(ver) { //return next version, input latest version output latest version
+		for (var i=0;i<versions.length;i++) {
+			if (versions[i]==ver) {
+				if (i<versions.length-1) return versions[i+1];
+			}
+		}
+		return version;
+	}
+	var backwardSplitSegment=function(ver,text,breakat,newSegname) { //will not change segs
 		//console.log(text,segs[newSegname],breakat)
 		//return segs[newSegname].substr(breakat);
-		if (text) return text.substr(0,breakat)
-		else return segs[newSegname].substr(breakat);
+		if (typeof text!=="undefined") return text.substr(0,breakat);
+		else {
+			//console.log(nextVersion(ver),version,get(newSegname,version))
+			//console.log(ver,version,newSegname,segs,get(newSegname,nextVersion(ver)))
+			return get(newSegname,nextVersion(ver)).substr(breakat); //find text in other segment
+		}
 	}
 	var splitSegment=function(text,breakat,currentSegname,newSegname) {
 
@@ -94,33 +106,35 @@ var createDocument=function(opts) {
 			return text.substr(0,breakat);
 		}
 	}
-	var invertMergeSegment=function() {
+	var backwardMergeSegment=function(ver,newSegname) { //will not change segs
 		//console.log("invert merge")
-		return text+get(oldSegname);
+		return text+get(newSegname,ver);
 	}
-	var mergeSegment=function(ver,text,currentSegname,oldSegname) {
+	var mergeSegment=function(text,currentSegname,oldSegname) {
 		segs[oldSegname]+=text;
 		var i=segnames.indexOf(currentSegname);
 		segnames.splice(i,1);
 		delete segs[currentSegname];			
 
-		return "";
+		return undefined;
 	}
 	var applyMutation=function(ver,revisions,text,segid,getting){
 		revisions.map(function(r){
 			if (typeof r[2].t!=="undefined") {//text mutation
 				text=text.substring(0,r[0])+(r[2].t||"")+text.substring(r[0]+r[1]);	
 			} else if (r[2].p) { //breaking
-				text=getting?invertSplitSegment(text,r[0],r[2].p):splitSegment(text,r[0],segid,r[2].p);
+				if (getting) console.log(segid,r[2].p,text);
+				
+				text=getting?backwardSplitSegment(ver,text,r[0],r[2].p):splitSegment(text,r[0],segid,r[2].p);
 			} else if (r[2].m) { //merging
-				text=getting?invertMergeSegment():mergeSegment(ver,text,segid,r[2].m);
+				text=getting?backwardMergeSegment(ver,r[2].m):mergeSegment(text,segid,r[2].m);
 			}
 		});
 		return text;
 	}
 
 	var get=function(segid,ver) {
-		var inscription=segs[segid]||"";
+		var inscription=segs[segid];
 
 		if (typeof ver==="undefined" || ver===version) return segs[segid];
 
@@ -182,13 +196,10 @@ var createDocument=function(opts) {
 
 				if (rawtags[segid]) rawtags[segid]=rawtags[segid].map(adjustOffset,revisions);
 
-				segs[segid]=newtext;
-				/*
-				if (typeof newtext!=="undefined") {
-					//if (!segs[segid]) throw("text to set doesn't exist "+segid);
-					
+				if (typeof newtext!=="undefined") { //after merged , seg is gone
+					if (!segs[segid]) throw("text to set doesn't exist "+segid);
+					segs[segid]=newtext;				
 				}
-				*/
 			}
 			var revs=removeUUID(markups);
 
