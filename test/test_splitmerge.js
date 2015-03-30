@@ -70,7 +70,12 @@ it("merge para",function(){
 	});
 
 });
-
+it("revert ancestor version",function(){
+	console.log(JSON.stringify(layerdoc.versions),layerdoc.version)
+	//console.log(layerdoc.get("a",v1),"一一二");
+	console.log(layerdoc.get("a1",v2),"二");
+});
+/*
 it("revert previous version",function(){
 
 	//console.log('v1',layerdoc.get("a",v1),"===","一一二");
@@ -81,15 +86,14 @@ it("revert previous version",function(){
 	//console.log(layerdoc.get("b",v2),"===","2");
 
 	assert.equal(layerdoc.get("b",v2),"2");
-/*
 	assert.equal(layerdoc.get("a",v2),"一一");
 	assert.equal(layerdoc.get("a1",v2),"二");
 	assert.equal(layerdoc.get("b1",v2),"三三");
 	assert.equal(layerdoc.get("d",v2),"四四四四");
-
 	assert.equal(layerdoc.get("c",v2),"3");
-	*/
+
+	assert.equal(layerdoc.get("a1"),"二2")
 
 });
-
+*/
 });

@@ -92,6 +92,7 @@ var createDocument=function(opts) {
 		else {
 			//console.log(nextVersion(ver),version,get(newSegname,version))
 			//console.log(ver,version,newSegname,segs,get(newSegname,nextVersion(ver)))
+			console.log(newSegname,nextVersion(ver))
 			return get(newSegname,nextVersion(ver)).substr(breakat); //find text in other segment
 		}
 	}
@@ -106,9 +107,12 @@ var createDocument=function(opts) {
 			return text.substr(0,breakat);
 		}
 	}
-	var backwardMergeSegment=function(ver,newSegname) { //will not change segs
+	var backwardMergeSegment=function(ver,text,breakat,newSegname) { //will not change segs
 		//console.log("invert merge")
-		return text+get(newSegname,ver);
+		//console.log('next',get(newSegname,ver));
+		//console.log('segid',newSegname)
+		var newtext=get(newSegname,ver);
+		return (text||"")+newtext;
 	}
 	var mergeSegment=function(text,currentSegname,oldSegname) {
 		segs[oldSegname]+=text;
@@ -123,11 +127,10 @@ var createDocument=function(opts) {
 			if (typeof r[2].t!=="undefined") {//text mutation
 				text=text.substring(0,r[0])+(r[2].t||"")+text.substring(r[0]+r[1]);	
 			} else if (r[2].p) { //breaking
-				if (getting) console.log(segid,r[2].p,text);
-				
+				if (getting) console.log('getting',segid,r,text);
 				text=getting?backwardSplitSegment(ver,text,r[0],r[2].p):splitSegment(text,r[0],segid,r[2].p);
 			} else if (r[2].m) { //merging
-				text=getting?backwardMergeSegment(ver,r[2].m):mergeSegment(text,segid,r[2].m);
+				text=getting?backwardMergeSegment(ver,text,r[0],r[2].m):mergeSegment(text,segid,r[2].m);
 			}
 		});
 		return text;
@@ -211,6 +214,7 @@ var createDocument=function(opts) {
 
 	var extractTag=function(buf) {
 		var tags=[],taglengths=0;
+		if (!buf) return {text:buf,tags:tags};
 		var text=buf.replace(/<(.*?)>/g,function(m,m1,idx){
 			tags.push([idx-taglengths,m1]);
 			taglengths+=m.length;
