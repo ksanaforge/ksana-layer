@@ -11,14 +11,37 @@ var createLayer=function(doc,opts) {
 	Object.defineProperty(layer,'version',{get:function(){return _version}});
 	Object.defineProperty(layer,'markups',{get:function(){return _markups}});
 
+	var mergePara=function(segid,mergewith) { //once per 
+		var oldm=_markups[segid];
+		var oldm2=_markups[mergewith];
+		if (oldm || oldm2) return null;//cannot merge , already have other tag.
+		return createMarkup(segid,0,0,{"m":mergewith});
+	}
+	var isMerged=function(segid) { //check if seg is merging with other seg
+		for (var i in _markups) {
+			if (_markups[i].filter(function(m){return !!m[2].m}).length) return true;
+		}
+		return false;
+	}
+	var splitPara=function(segid,newpara,breakat) {
+		var oldm=_markups[segid];
+		if (oldm && oldm.length){
+			if (oldm[0][2].m) return null; //cannot split because will be merged 
+			var splits=oldm.filter(function(m){return !!m[2].p});
+			if (splits.length!=oldm.length) return null;//cannot have other than p
+		} 
+		if (isMerged(segid))return null;
+
+		return createMarkup(segid,breakat,0,{"p":newpara});
+	}
 	var createMarkup=function(segid,start,len,payload) {
+		if (!_markups[segid]) _markups[segid]=[];
 		var uuid=UUID();
 		payload=payload||{};
 		payload.uuid=uuid;
 		var markup=[start,len,payload];
 		segidOfuuid[uuid]=segid;
 
-		if (!_markups[segid]) _markups[segid]=[];
 		_markups[segid].push(markup);
 		return uuid;
 	}
@@ -119,6 +142,8 @@ var createLayer=function(doc,opts) {
 	layer.inscriptionOfAsync=inscriptionOfAsync;
 	layer.upgrade=upgrade;
 	layer.createMarkup=createMarkup;
+	layer.mergePara=mergePara;
+	layer.splitPara=splitPara;
 	layer.importJSON=importJSON;
 	layer.exportJSON=exportJSON;
 

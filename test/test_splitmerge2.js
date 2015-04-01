@@ -4,26 +4,9 @@ var fs=require("fs");
 var layerdoc=null;
 var layermarkup=null;
 var m1,m2=null;
-/*
-discrepancy
-*/
+/* discrepancy*/
 
 describe("split merge paragraph",function() {
-var v1,v2;
-
-/*
-    122333  ==>   1
-                  22
-                  333
-
-    11        ==> 1122333
-    222
-    333
-
-	111222   ==>  111
-	二            222二
-*/
-
 
 it("split",function(done){
 	layerdoc=API.layerdoc.create();
@@ -60,7 +43,7 @@ it("merge",function(done){
 	layermutation.createMarkup("c",0,0,{"m":"a"}); 
 
 	layerdoc.evolve(layermutation,function(){
-		console.log(JSON.stringify(layerdoc.versions));
+		//console.log(JSON.stringify(layerdoc.versions));
 		assert.equal(layerdoc.ndoc,1);
 		assert.equal(layerdoc.get("a"),"122333");
 
@@ -70,11 +53,100 @@ it("merge",function(done){
 		assert.equal(layerdoc.versions[0].revisions.c[0][0],3); //insert "c" at 3 of "a"
 		assert.equal(layerdoc.versions[0].revisions.c[0][1],3); //length of "c"
 
-		assert.equal(!!layerdoc.get("b"),false);
-		assert.equal(!!layerdoc.get("c"),false);
+		assert.equal(!!layerdoc.get("b"),false); //not exist in this version
+		assert.equal(!!layerdoc.get("c"),false); //not exist in this version
 		
+		//console.log(JSON.stringify(layerdoc.versions));
 		assert.equal(layerdoc.get("b",-1),"22");
 		assert.equal(layerdoc.get("c",-1),"333");
+		done();
+	});
+
+});
+
+
+it("split than merge",function(done){
+	layerdoc=API.layerdoc.create();
+	layerdoc.put("a","1");
+	layerdoc.put("a1","1二");
+	layerdoc.put("b1","223333");
+
+	var layermutation=API.layermarkup.create(layerdoc);
+	layermutation.createMarkup("a1",1,0,{"p":"b"}); 
+	layermutation.createMarkup("b1",2,0,{"p":"c"}); 
+	layerdoc.evolve(layermutation,function(){
+		assert.equal(layerdoc.get("a"),"1");
+		assert.equal(layerdoc.get("a1"),"1");
+		assert.equal(layerdoc.get("b"),"二");
+		assert.equal(layerdoc.get("b1"),"22");
+		assert.equal(layerdoc.get("c"),"3333");
+
+		layermutation=API.layermarkup.create(layerdoc);
+		layermutation.createMarkup("a1",0,0,{"m":"a"}); 
+		layermutation.createMarkup("b1",0,0,{"m":"b"}); 
+		layerdoc.evolve(layermutation,function(){
+			assert.equal(layerdoc.get("a"),"11");
+			assert.equal(layerdoc.get("b"),"二22");
+			assert.equal(layerdoc.get("c"),"3333");
+
+			assert.equal(layerdoc.get("a",-1),"1");
+			assert.equal(layerdoc.get("a",-1),"1");
+
+			assert.equal(layerdoc.get("a1",-1),"1");
+			assert.equal(layerdoc.get("b1",-1),"22");
+			assert.equal(layerdoc.get("c",-1),"3333");
+			assert.equal(layerdoc.get("b",-1),"二");
+
+
+			assert.equal(layerdoc.get("a",-2),"1");
+			//console.log(JSON.stringify(layerdoc.versions))
+
+			assert.equal(layerdoc.get("a1",-1),"1");
+			assert.equal(layerdoc.get("a1",-2),"1二");
+
+			//console.log(layerdoc._segs());
+			assert.equal(layerdoc.get("b1",-1),"22");
+			assert.equal(layerdoc.get("b1",-2),"223333");
+			done();
+		});
+
+
+	});
+});
+
+it("check validity of split/merge ",function(done){
+	layerdoc=API.layerdoc.create();
+	layerdoc.put("a","1Q22");
+	layerdoc.put("b","二");
+	layerdoc.put("b1","2223333");
+	layerdoc.put("d","44444");
+	layerdoc.put("e","55555");
+
+	var layermutation=API.layermarkup.create(layerdoc);
+	layermutation.splitPara("a","a1",2); 
+	m=layermutation.mergePara("b","a");  //this will fail, because a is spliting
+	assert.equal(m,null); //cannot merge.
+
+	m=layermutation.splitPara("a","a2",1); 
+	assert.equal(!!m,true); 
+
+	m=layermutation.splitPara("b1","c",3); 
+	assert.equal(!!m,true); 
+
+
+	m=layermutation.mergePara("e","d"); 
+	assert.equal(!!m,true); 
+
+	m=layermutation.splitPara("e","ee",3); 
+	assert.equal(m,null); 	 //cannot split , e is merging with d
+
+	//console.log(JSON.stringify(layermutation.markups))
+	m=layermutation.splitPara("d","dd",3); 
+	assert.equal(m,null); 	 //cannot split , d is merged by e
+
+	layerdoc.evolve(layermutation,function(){
+		//console.log(layerdoc._segs())
+		assert.equal(layerdoc.get("a2"),"Q")
 		done();
 	});
 

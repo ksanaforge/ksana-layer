@@ -71,16 +71,16 @@ it("merge para",function(){
 
 });
 it("revert ancestor version",function(){
-	console.log(JSON.stringify(layerdoc.versions),layerdoc.version)
+	//console.log(JSON.stringify(layerdoc.versions),layerdoc.version)
 	//console.log(layerdoc.get("a",v1),"一一二");
 	console.log(layerdoc.get("a1",v2),"二");
 });
-/*
+
 it("revert previous version",function(){
 
-	//console.log('v1',layerdoc.get("a",v1),"===","一一二");
-	//console.log('v1',layerdoc.get("b",v1),"===","2三三");
-	//console.log('v1',layerdoc.get("c",v1),"===","3四四四四");
+	assert.equal(layerdoc.get("a",v1),"一一二");
+	assert.equal(layerdoc.get("b",v1),"2三三");
+	assert.equal(layerdoc.get("c",v1),"3四四四四");
 
 	//console.log(layerdoc.get("a",v2),"一一");
 	//console.log(layerdoc.get("b",v2),"===","2");
@@ -95,5 +95,5 @@ it("revert previous version",function(){
 	assert.equal(layerdoc.get("a1"),"二2")
 
 });
-*/
+
 });
