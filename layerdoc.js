@@ -10,17 +10,18 @@ var sortMutation=function(revisions,reverse) {
 		var am=(!!a[2].m),bm=(!!b[2].m);
 		var ap=(!!a[2].p),bp=(!!b[2].p);
 		var r=0;
-		if (at && bm || at && bp || ap && bm) r= -1;			
+		if (at && bm || at && bp || ap && bm) r= -1;
 		else if (am && bp || ap && bt || am && bt) r=  1;
-		else r=b[0]-a[0];
-
-		if (reverse) r=1-r;
+		else {
+			r=b[0]-a[0];
+			if (reverse) r=1-r;
+		}
 		return r;
 
 	});
 }
 //convert revert and revision back and forth
-var revertRevision=function(revs,inscription,segid,segreverts) {
+var revertRevision=function(segs,revs,inscription,segid,segreverts) {
 	var reverts=[], offset=0;
 
 	revs=sortMutation(revs,true);  //sort asc by starting offset
@@ -40,13 +41,15 @@ var revertRevision=function(revs,inscription,segid,segreverts) {
 		} else if (m[2].p) {
 			var newp=m[2].p; //new seg id
 			if (!segreverts[newp]) segreverts[newp]=[];
-			reverts.push([m[0],0,{m:newp}]); //merge with newp
-			segreverts[newp].push([m[0],0,{m:segid} ]); //merge with segid
+			reverts.push([m[0],m[1],{"m":newp}]); //merge with newp
+			var newptext=segs[newp]||"";
+
+			segreverts[newp].push([ m[0] , m[1] ,{"d":segid} ]); //delete with segid
 		} else if (m[2].m) {
 			var oldsegid=m[2].m; //the seg id to be merged with
 			if (!segreverts[oldsegid]) segreverts[oldsegid]=[];
-			reverts.push([m[0],0,{p:oldsegid}]); //merge with oldsegid
-			segreverts[oldsegid].push([m[0],0,{p:segid} ]); //break oldsegid
+			reverts.push([m[0],m[1],{p:oldsegid}]); //merge with oldsegid
+			segreverts[oldsegid].push([m[0],m[1],{p:segid} ]); //break oldsegid
 
 		} else throw "incorrect revs format "+r;
 	});
@@ -79,42 +82,49 @@ var createDocument=function(opts) {
 
 	var nextVersion=function(ver) { //return next version, input latest version output latest version
 		for (var i=0;i<versions.length;i++) {
-			if (versions[i]==ver) {
+			if (versions[i].version==ver) {
 				if (i<versions.length-1) return versions[i+1];
 			}
 		}
 		return version;
 	}
-	var backwardSplitSegment=function(ver,text,breakat,newSegname) { //will not change segs
+	var backwardSplitSegment=function(ver,text,rev,newSegname) { //will not change segs
 		//console.log(text,segs[newSegname],breakat)
 		//return segs[newSegname].substr(breakat);
-		if (typeof text!=="undefined") return text.substr(0,breakat);
-		else {
-			//console.log(nextVersion(ver),version,get(newSegname,version))
-			//console.log(ver,version,newSegname,segs,get(newSegname,nextVersion(ver)))
-			console.log(newSegname,nextVersion(ver))
-			return get(newSegname,nextVersion(ver)).substr(breakat); //find text in other segment
-		}
-	}
-	var splitSegment=function(text,breakat,currentSegname,newSegname) {
+		var breakat=rev[0];
+		var len=rev[1];
+		var newSegname=rev[2].p;
 
+		return get(newSegname,nextVersion(ver)).substr(breakat,len); //find text in other segment
+	}
+	var splitSegment=function(text,currentSegname,rev) {
+		var newSegname=rev[2].p;
+		var breakat=rev[0];
+		if (breakat<=0 || breakat===text.length-1) {
+			console.error("cannot break at ",breakat);
+			return text;
+		}
 		if (segs[newSegname]) {
 			throw "repeated segname";
 		} else {
 			segs[newSegname]=text.substr(breakat);
+			rev[1]=segs[newSegname].length;  // bytes of new segname
 			var i=segnames.indexOf(currentSegname);
 			segnames.splice(i,0,newSegname);				
 			return text.substr(0,breakat);
 		}
 	}
-	var backwardMergeSegment=function(ver,text,breakat,newSegname) { //will not change segs
-		//console.log("invert merge")
-		//console.log('next',get(newSegname,ver));
-		//console.log('segid',newSegname)
-		var newtext=get(newSegname,ver);
+	var backwardMergeSegment=function(ver,text,rev) { //will not change segs
+		var newSegname=rev[2].m;
+		var breakat=rev[0];
+
+		var newtext=get(newSegname,nextVersion(ver));
 		return (text||"")+newtext;
 	}
-	var mergeSegment=function(text,currentSegname,oldSegname) {
+	var mergeSegment=function(text,currentSegname,rev) {
+		var oldSegname=rev[2].m;
+		rev[1]=text.length;
+		rev[0]=segs[oldSegname].length;
 		segs[oldSegname]+=text;
 		var i=segnames.indexOf(currentSegname);
 		segnames.splice(i,1);
@@ -123,30 +133,48 @@ var createDocument=function(opts) {
 		return undefined;
 	}
 	var applyMutation=function(ver,revisions,text,segid,getting){
-		revisions.map(function(r){
+		for (var i=0;i<revisions.length;i++) {
+			var r=revisions[i];
+
 			if (typeof r[2].t!=="undefined") {//text mutation
 				text=text.substring(0,r[0])+(r[2].t||"")+text.substring(r[0]+r[1]);	
 			} else if (r[2].p) { //breaking
-				if (getting) console.log('getting',segid,r,text);
-				text=getting?backwardSplitSegment(ver,text,r[0],r[2].p):splitSegment(text,r[0],segid,r[2].p);
+				//if (getting) console.log('getting',segid,r,text);
+				text=getting?backwardSplitSegment(ver,text,r):splitSegment(text,segid,r);
 			} else if (r[2].m) { //merging
-				text=getting?backwardMergeSegment(ver,text,r[0],r[2].m):mergeSegment(text,segid,r[2].m);
+				//if (getting) console.log('getting',segid,r,text);
+				text=getting?backwardMergeSegment(ver,text,r):mergeSegment(text,segid,r);
+			} else if (r[2].d) {
+				return "";
 			}
-		});
+		};
 		return text;
+	}
+
+	var getPreviousVersion=function(ver) {
+		if (ver>0) return ver;
+		if (ver===0 || versions.length==0) return version;
+
+		var at=versions.length+ver;
+		if (at>=0) return versions[at].version;
+		else return versions[0].version; //original
 	}
 
 	var get=function(segid,ver) {
 		var inscription=segs[segid];
 
 		if (typeof ver==="undefined" || ver===version) return segs[segid];
+		if (ver<0) ver=getPreviousVersion(ver);
 
 		if (!hasVersion(ver)) return null;
 
 		for (var i=versions.length-1;i>=0;i--) {
 			var revs=versions[i].reverts[segid];
 			//console.log(versions[i].reverts,segid,i,ver,versions[i].version,inscription)
-			if (revs) inscription=applyMutation(ver,revs, inscription,segid,true);
+			if (revs &&revs.length) {
+				if (revs[0][2].m) revs=sortMutation( revs,true); //merge from higher offset
+				inscription=applyMutation(ver,revs, inscription,segid,true);
+			}
 			
 			if (versions[i].version==ver) break;
 		}
@@ -189,13 +217,13 @@ var createDocument=function(opts) {
 			var segreverts={};
 			for (var segid in markups) {
 				var revisions=markups[segid];
-				var oldinscription=get(segid);
+				var oldinscription=segs[segid];
 
 				revisions=sortMutation(revisions);
 
 				var newtext=applyMutation(version,revisions,oldinscription,segid);
 
-				segreverts[segid]=revertRevision(revisions,oldinscription,segid,segreverts);
+				segreverts[segid]=revertRevision(segs,revisions,oldinscription,segid,segreverts);
 
 				if (rawtags[segid]) rawtags[segid]=rawtags[segid].map(adjustOffset,revisions);
 
