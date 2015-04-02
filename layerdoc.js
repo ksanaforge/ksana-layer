@@ -221,18 +221,58 @@ var createDocument=function(opts) {
 		return inscription;
 	}
 
-	var getAsync=function(segid,cb,ver) { //virtual method
+	var getAsync=function(segid,cb,ver) { //to be override
 		if (cb) cb(get(segid,ver));
 	}
-	var prefetch=function(segments,cb) { //virtual method
+	var prefetch=function(segments,cb) { //to be override
 		cb();
 	}
 
+	var splitPara=function(revs,segid) {
+
+		for (var i=0;i<revs.length;i++) {
+			var rev=revs[i];
+			if (typeof rev[2].p==="undefined") continue;
+
+			var newSeg=rev[2].p;
+			var splitat=rev[0]
+			var newtags=[];
+			var tags=rawtags[segid]||[];
+			tags.map(function(t){
+				if (t[0]<splitat) return;
+				newtags.push([t[0]-splitat,t[1]]);	
+			});
+
+			rawtags[segid]=tags.filter(function(t){
+				return t[0]<splitat;
+			});
+
+			if (!rawtags[newSeg]) rawtags[newSeg]=[];
+			rawtags[newSeg]=newtags;
+		}
+
+
+	}
+
+	var mergePara=function(revs,segid) {
+		var mergewith=revs[0][2].m;
+		if (typeof mergewith==="undefined") return;
+		var tags=rawtags[segid];
+		var start=segs[mergewith].length;
+		var newtags=tags.map(function(t){
+			return [t[0]+start,t[1]];
+		});
+		if (!rawtags[mergewith]) rawtags[mergewith]=[];
+		rawtags[mergewith]=rawtags[mergewith].concat(newtags);
+
+		rawtags[segid]=[];
+	}
 	//tag are never deleted, only moved to new position
 	var adjustOffset=function(m) {
 		var s=m[0], delta=0;
 		var revs=this;
-		revs.map(function(rev){
+		revs.forEach(function(rev){
+			if (typeof rev[2].t=="undefined") return;
 			if (rev[0]<=s) { //this will affect the offset
 				delta+= (rev[2].t.length-rev[1]);
 			}
@@ -260,12 +300,18 @@ var createDocument=function(opts) {
 				var oldinscription=segs[segid];
 
 				revisions=sortMutation(revisions);
+				if (rawtags[segid]) {
+					mergePara(revisions,segid);
+					splitPara(revisions,segid);
+					rawtags[segid]=(rawtags[segid]||[]).map(adjustOffset,revisions);
+					if (!rawtags[segid].length) delete rawtags[segid];
+				}
+
 
 				var newtext=applyMutation(version,revisions,oldinscription,segid);
 
 				segreverts[segid]=revertRevision(segs,revisions,oldinscription,segid,segreverts);
 
-				if (rawtags[segid]) rawtags[segid]=rawtags[segid].map(adjustOffset,revisions);
 
 				if (typeof newtext!=="undefined") { //after merged , seg is gone
 					if (!segs[segid]) throw("text to set doesn't exist "+segid);

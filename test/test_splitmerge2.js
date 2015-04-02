@@ -152,4 +152,23 @@ it("check validity of split/merge ",function(done){
 
 });
 
+it("migrate internal tag",function(done){
+	layerdoc=API.layerdoc.create();
+	layerdoc.put("a","11112<tag/>222");
+	layerdoc.put("c","3333");
+	layerdoc.put("d","44<tag2/>44");
+
+
+	var layermutation=API.layermarkup.create(layerdoc);
+	layermutation.splitPara("a","a1",4); 
+	layermutation.mergePara("d","c");
+
+	layerdoc.debug=true;
+	layerdoc.evolve(layermutation,function(){
+		assert.equal(layerdoc.rawtags["a1"][0][0],1);
+		assert.equal(layerdoc.rawtags["c"][0][0],6);
+		done();
+	});
+});
+
 });

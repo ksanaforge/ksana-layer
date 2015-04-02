@@ -100,11 +100,12 @@ var createLayer=function(doc,opts) {
 		for (var segid in _markups) {
 			var markups=_markups[segid];
 			for (var i=0;i<versions.length;i++) {
+				if (versions[i].version<_version) continue;
 				var forward=versions[i].revisions[segid];
 				if (forward) {
 					for (var j=0;j<markups.length;j++)	markups[j]=adjustOffset(forward, markups[j]);
 				}
-				if (versions[i].version==_version) break;
+				//if (versions[i].version==_version) break;
 			}
 		}
 		_version=doc.version;
