@@ -171,4 +171,37 @@ it("migrate internal tag",function(done){
 	});
 });
 
+
+it("migrate markup tag",function(done){
+	layerdoc=API.layerdoc.create();
+	layerdoc.put("a","1111二222");
+	layerdoc.put("c","3333");
+	layerdoc.put("d","四444");
+
+
+	layermarkup=API.layermarkup.create(layerdoc);
+	var m1=layermarkup.createMarkup("a",4,2);
+
+
+	assert.equal(layermarkup.inscriptionOf(m1),"二2");
+
+	var m2=layermarkup.createMarkup("d",0,2);
+	assert.equal(layermarkup.inscriptionOf(m2),"四4");
+
+	var layermutation=API.layermarkup.create(layerdoc);
+	layermutation.splitPara("a","a1",4); 
+	layermutation.mergePara("d","c");
+
+	layerdoc.evolve(layermutation,function(){
+		layerdoc.debug=true;
+
+		layermarkup.upgrade(); 
+		console.log(JSON.stringify(layermarkup.markups));
+		assert.equal(layermarkup.inscriptionOf(m1),"二2");
+		assert.equal(layermarkup.inscriptionOf(m2),"四4");
+		done();
+	});
+});
+
+
 });

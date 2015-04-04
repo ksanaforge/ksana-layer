@@ -228,7 +228,7 @@ var createDocument=function(opts) {
 		cb();
 	}
 
-	var splitPara=function(revs,segid) {
+	var splitSeg=function(revs,segid) {
 
 		for (var i=0;i<revs.length;i++) {
 			var rev=revs[i];
@@ -254,7 +254,7 @@ var createDocument=function(opts) {
 
 	}
 
-	var mergePara=function(revs,segid) {
+	var mergeSeg=function(revs,segid) {
 		var mergewith=revs[0][2].m;
 		if (typeof mergewith==="undefined") return;
 		var tags=rawtags[segid];
@@ -301,8 +301,8 @@ var createDocument=function(opts) {
 
 				revisions=sortMutation(revisions);
 				if (rawtags[segid]) {
-					mergePara(revisions,segid);
-					splitPara(revisions,segid);
+					mergeSeg(revisions,segid);
+					splitSeg(revisions,segid);
 					rawtags[segid]=(rawtags[segid]||[]).map(adjustOffset,revisions);
 					if (!rawtags[segid].length) delete rawtags[segid];
 				}

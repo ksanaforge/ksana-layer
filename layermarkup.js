@@ -10,6 +10,8 @@ var createLayer=function(doc,opts) {
 
 	Object.defineProperty(layer,'version',{get:function(){return _version}});
 	Object.defineProperty(layer,'markups',{get:function(){return _markups}});
+	//Object.defineProperty(layer,'_segidOfuuid',{get:function(){return segidOfuuid}});
+
 
 	var mergePara=function(segid,mergewith) { //once per 
 		var oldm=_markups[segid];
@@ -52,6 +54,7 @@ var createLayer=function(doc,opts) {
 		
 		var ins=layer.doc.get(segid,_version);
 		if (typeof ins==="undefined") return "";
+
 		return ins.substr(markup[0],markup[1]);
 	}
 
@@ -77,10 +80,56 @@ var createLayer=function(doc,opts) {
 		return null;
 	}
 
+	var splitSeg=function(revs,segid) {
+		for (var i=0;i<revs.length;i++) {
+			var rev=revs[i];
+			if (typeof rev[2].p==="undefined") continue;
+
+			var newSeg=rev[2].p;
+			var splitat=rev[0]
+			var newtags=[];
+			var tags=_markups[segid]||[];
+			tags.map(function(t){
+				if (t[0]<splitat) return;
+				newtags.push([t[0]-splitat,t[1],t[2]]);	
+
+			});
+
+			_markups[segid]=tags.filter(function(t){
+				return t[0]<splitat;
+			});
+
+			if (!_markups[newSeg]) _markups[newSeg]=[];
+			_markups[newSeg]=newtags;
+
+			newtags.map(function(t){
+				segidOfuuid[t[2].uuid]=newSeg;
+			});
+		}
+	}
+
+	var mergeSeg=function(revs,segid) {
+		var mergewith=revs[0][2].m;
+		if (typeof mergewith==="undefined") return;
+		var tags=_markups[segid];
+		var start=layer.doc.get(mergewith,-1).length; //get previous version
+		var newtags=tags.map(function(t){
+			return [t[0]+start,t[1],t[2]];
+		});
+		if (!_markups[mergewith]) _markups[mergewith]=[];
+		_markups[mergewith]=_markups[mergewith].concat(newtags);
+
+		newtags.map(function(t){
+			segidOfuuid[t[2].uuid]=mergewith;
+		});
+
+		_markups[segid]=[];
+	}
 	var adjustOffset=function(revs,m) {
 		var s=m[0], l=m[1], delta=0, deleted=false;
 		if (l<0) l=0;
 		revs.map(function(rev){
+			if (typeof rev[2].t=="undefined") return;
 			if (rev[0]<=s) { //this will affect the offset
 				delta+= (rev[2].t.length-rev[1]);
 				if(rev[0]+rev[1]>=s+l) 	deleted=true;
@@ -103,6 +152,8 @@ var createLayer=function(doc,opts) {
 				if (versions[i].version<_version) continue;
 				var forward=versions[i].revisions[segid];
 				if (forward) {
+					mergeSeg(forward,segid);
+					splitSeg(forward,segid);
 					for (var j=0;j<markups.length;j++)	markups[j]=adjustOffset(forward, markups[j]);
 				}
 				//if (versions[i].version==_version) break;
