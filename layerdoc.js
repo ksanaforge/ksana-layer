@@ -62,6 +62,10 @@ var revertRevision=function(segs,revs,inscription,segid,segreverts) {
 			reverts.push([m[0],m[1],{p:oldsegid}]); //merge with oldsegid
 			segreverts[oldsegid].push([m[0],m[1],{p:segid} ]); //break oldsegid
 
+		} else if (m[2].r) {
+			var renameto=m[2].r; //t
+			reverts.push([m[0],m[1],{r:renameto}]);
+			segreverts[renameto]=[[m[0],m[1],{r:segid}]];
 		} else throw "incorrect revs format "+r;
 	});
 	//reverts.sort(function(a,b){return b[0]-a[0];}); //sort desc
@@ -153,10 +157,25 @@ var createDocument=function(opts) {
 		segs[oldSegname]+=text;
 		var i=segnames.indexOf(currentSegname);
 		segnames.splice(i,1);
-		delete segs[currentSegname];			
+		delete segs[currentSegname];
 
 		return undefined;
 	}
+	var backwardRenameSegment=function(ver,text,rev) { //will not change segs
+		var newSegname=rev[2].r;
+		var newtext=get(newSegname,nextVersion(ver));
+		return newtext;
+	}
+	var renameSegment=function(text,currentSegname,rev) {
+		var oldSegname=rev[2].r;
+		segs[oldSegname]=text;
+		var i=segnames.indexOf(currentSegname);
+		segnames.splice(i,1);
+		delete segs[currentSegname];
+
+		return undefined;
+	}
+
 	var applyMutation=function(ver,revisions,text,segid,getting){
 		//debuglog(segid,'apply mutation',text);
 		for (var i=0;i<revisions.length;i++) {
@@ -179,6 +198,8 @@ var createDocument=function(opts) {
 			} else if (r[2].d) {
 				//debuglog("removed")
 				return "";
+			} else if (r[2].r) {
+				text=getting?backwardRenameSegment(ver,text,r):renameSegment(text,segid,r);
 			}
 		};
 
@@ -208,7 +229,6 @@ var createDocument=function(opts) {
 		depth++;
 		for (var i=versions.length-1;i>=0;i--) {
 			var revs=versions[i].reverts[segid];
-			//console.log(versions[i].reverts,segid,i,ver,versions[i].version,inscription)
 			if (revs &&revs.length) {
 				if (revs[0][2].m) revs=sortMutation( revs,true); //merge from higher offset
 				inscription=applyMutation(versions[i].version,revs, inscription,segid,true);
@@ -267,6 +287,14 @@ var createDocument=function(opts) {
 
 		rawtags[segid]=[];
 	}
+
+	var renameSeg=function(revs,segid) {
+		var renameto=revs[0][2].r;
+		if (typeof renameto==="undefined") return;
+		console.log("rename")
+		rawtags[renameto]=rawtags[segid];
+		rawtags[segid]=[];
+	}
 	//tag are never deleted, only moved to new position
 	var adjustOffset=function(m) {
 		var s=m[0], delta=0;
@@ -303,10 +331,10 @@ var createDocument=function(opts) {
 				if (rawtags[segid]) {
 					mergeSeg(revisions,segid);
 					splitSeg(revisions,segid);
+					renameSeg(revisions,segid);
 					rawtags[segid]=(rawtags[segid]||[]).map(adjustOffset,revisions);
 					if (!rawtags[segid].length) delete rawtags[segid];
 				}
-
 
 				var newtext=applyMutation(version,revisions,oldinscription,segid);
 

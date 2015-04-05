@@ -163,7 +163,6 @@ it("migrate internal tag",function(done){
 	layermutation.splitPara("a","a1",4); 
 	layermutation.mergePara("d","c");
 
-	layerdoc.debug=true;
 	layerdoc.evolve(layermutation,function(){
 		assert.equal(layerdoc.rawtags["a1"][0][0],1);
 		assert.equal(layerdoc.rawtags["c"][0][0],6);
@@ -193,15 +192,46 @@ it("migrate markup tag",function(done){
 	layermutation.mergePara("d","c");
 
 	layerdoc.evolve(layermutation,function(){
-		layerdoc.debug=true;
+		
+
+		assert.equal(layermarkup.inscriptionOf(m1),"二2");
+		assert.equal(layermarkup.inscriptionOf(m2),"四4");
 
 		layermarkup.upgrade(); 
-		console.log(JSON.stringify(layermarkup.markups));
+		//console.log(JSON.stringify(layermarkup.markups));
 		assert.equal(layermarkup.inscriptionOf(m1),"二2");
 		assert.equal(layermarkup.inscriptionOf(m2),"四4");
 		done();
 	});
 });
+
+
+it("rename para",function(done){
+	layerdoc=API.layerdoc.create();
+	layerdoc.put("a","1111");
+	layerdoc.put("b","2222");
+
+	layermarkup=API.layermarkup.create(layerdoc);
+	var m1=layermarkup.createMarkup("a",1,2);
+
+	layerrename=API.layermarkup.create(layerdoc);
+	var m2=layerrename.renamePara("a","AA");
+	layerdoc.evolve(layerrename,function(){
+
+		layermarkup.upgrade();
+		assert.equal(layerdoc.get("AA"),"1111");
+		assert.equal(layermarkup.inscriptionOf(m1),"11");
+		assert.equal(layermarkup._segidOfuuid[m1],"AA");
+
+		layerdoc.debug=true;
+		assert.equal(layerdoc.get("a"),undefined);
+		assert.equal(layerdoc.get("a",-1),"1111");
+
+		done();
+	});
+
+});
+
 
 
 });

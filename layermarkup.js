@@ -10,7 +10,7 @@ var createLayer=function(doc,opts) {
 
 	Object.defineProperty(layer,'version',{get:function(){return _version}});
 	Object.defineProperty(layer,'markups',{get:function(){return _markups}});
-	//Object.defineProperty(layer,'_segidOfuuid',{get:function(){return segidOfuuid}});
+	Object.defineProperty(layer,'_segidOfuuid',{get:function(){return segidOfuuid}});
 
 
 	var mergePara=function(segid,mergewith) { //once per 
@@ -35,6 +35,14 @@ var createLayer=function(doc,opts) {
 		if (isMerged(segid))return null;
 
 		return createMarkup(segid,breakat,0,{"p":newpara});
+	}
+	var renamePara=function(segid,renameto) { //once per 
+		if (typeof layer.doc._segs[renameto]!=="undefined")return null;
+		var oldm=_markups[segid];
+		var oldm2=_markups[renameto];
+		if (oldm || oldm2) return null;//cannot rename , already have other tag.		
+
+		return createMarkup(segid,0,0,{"r":renameto});
 	}
 	var createMarkup=function(segid,start,len,payload) {
 		if (!_markups[segid]) _markups[segid]=[];
@@ -125,6 +133,20 @@ var createLayer=function(doc,opts) {
 
 		_markups[segid]=[];
 	}
+
+	var renameSeg=function(revs,segid) {
+		var renameto=revs[0][2].r;
+		if (typeof renameto==="undefined") return;
+
+		var tags=_markups[segid];
+		_markups[renameto]=_markups[segid];
+
+		tags.map(function(t){
+			segidOfuuid[t[2].uuid]=renameto;
+		});
+
+		_markups[segid]=[];
+	}
 	var adjustOffset=function(revs,m) {
 		var s=m[0], l=m[1], delta=0, deleted=false;
 		if (l<0) l=0;
@@ -154,6 +176,7 @@ var createLayer=function(doc,opts) {
 				if (forward) {
 					mergeSeg(forward,segid);
 					splitSeg(forward,segid);
+					renameSeg(forward,segid);
 					for (var j=0;j<markups.length;j++)	markups[j]=adjustOffset(forward, markups[j]);
 				}
 				//if (versions[i].version==_version) break;
@@ -196,6 +219,7 @@ var createLayer=function(doc,opts) {
 	layer.createMarkup=createMarkup;
 	layer.mergePara=mergePara;
 	layer.splitPara=splitPara;
+	layer.renamePara=renamePara;
 	layer.importJSON=importJSON;
 	layer.exportJSON=exportJSON;
 
