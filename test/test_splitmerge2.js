@@ -27,8 +27,8 @@ it("split",function(done){
 it("split backward",function(){
 	//console.log(JSON.stringify(layerdoc.versions));
 	assert.equal(layerdoc.get("a",-1),"122333");
-	assert.equal(layerdoc.get("b",-1),"");
-	assert.equal(layerdoc.get("c",-1),"");
+	assert.equal(layerdoc.get("b",-1),undefined);
+	assert.equal(layerdoc.get("c",-1),undefined);
 });
 
 
@@ -223,9 +223,21 @@ it("rename para",function(done){
 		assert.equal(layermarkup.inscriptionOf(m1),"11");
 		assert.equal(layermarkup._segidOfuuid[m1],"AA");
 
-		layerdoc.debug=true;
+		
 		assert.equal(layerdoc.get("a"),undefined);
 		assert.equal(layerdoc.get("a",-1),"1111");
+
+		layermarkup=API.layermarkup.create(layerdoc);
+
+		layerrename2=API.layermarkup.create(layerdoc);
+		var m2=layerrename2.renamePara("AA","AAA");
+		layerdoc.evolve(layerrename2,function(){
+			assert.equal(layerdoc.get("AAA"),"1111");
+			assert.equal(layerdoc.get("AA",-1),"1111");
+			assert.equal(layerdoc.get("a",-2),"1111");
+		});
+
+
 
 		done();
 	});

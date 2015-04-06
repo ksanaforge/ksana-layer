@@ -104,107 +104,108 @@ var createDocument=function(opts) {
 		}
 		return version;
 	}
-	var backwardSplitSegment=function(ver,text,rev,newSegname) { //will not change segs
-		//console.log(text,segs[newSegname],breakat)
-		//return segs[newSegname].substr(breakat);
+	var backwardSplitSegment=function(ver,text,rev,oldSegid) { //will not change segs
+		//console.log(text,segs[newSegid],breakat)
+		//return segs[newSegid].substr(breakat);
 		var breakat=rev[0];
 		var len=rev[1];
-		var newSegname=rev[2].p;
+		var newSegid=rev[2].p;
 		
-		//debuglog("back split",text, rev, "from",newSegname )
+		//debuglog("back split",text, rev, "from",newSegid )
 		if (!text) {
 			var nv=nextVersion(ver);
-			//debuglog("get text from newsegname",newSegname,nv)
-			var t=get(newSegname,nv);
+			//debuglog("get text from newSegid",newSegid,nv)
+			var t=get(newSegid,nv);
 			//debuglog("'"+t+"'",breakat,len);
 
-			if (nv==version) return t.substr(breakat,len);
-			else return t;
+			if (nv==version) return {text:t.substr(breakat,len),segid:newSegid};
+			else return {text:t,segid:newSegid};
 		}
 		//debuglog("use old inscription")
-		return text.substr(0,breakat); //find text in other segment
+		return {text:text.substr(0,breakat),segid:oldSegid}; //find text in other segment
 	}
-	var splitSegment=function(text,currentSegname,rev) {
-		var newSegname=rev[2].p;
+	var splitSegment=function(text,currentSegid,rev) {
+		var newSegid=rev[2].p;
 		var breakat=rev[0];
 		if (breakat<=0 || breakat===text.length) {
-			console.error("cannot break at ",breakat,text,currentSegname,rev);
-			return text;
+			console.error("cannot break at ",breakat,text,currentSegid,rev);
+			return {text:text,segid:currentSegid};
 		}
-		if (segs[newSegname]) {
+		if (segs[newSegid]) {
 			throw "repeated segname";
 		} else {
-			segs[newSegname]=text.substr(breakat);
-			rev[1]=segs[newSegname].length;  // bytes of new segname
-			var i=segnames.indexOf(currentSegname);
-			segnames.splice(i,0,newSegname);				
-			return text.substr(0,breakat);
+			segs[newSegid]=text.substr(breakat);
+			rev[1]=segs[newSegid].length;  // bytes of new segname
+			var i=segnames.indexOf(currentSegid);
+			segnames.splice(i,0,newSegid);				
+			return {text:text.substr(0,breakat),segid:currentSegid};
 		}
 	}
 	var backwardMergeSegment=function(ver,text,rev) { //will not change segs
-		var newSegname=rev[2].m;
+		var newSegid=rev[2].m;
 		var breakat=rev[0];
 
 		//debuglog("backward merge",text,rev)
 
-		var newtext=get(newSegname,nextVersion(ver));
-		return (text||"")+newtext;
+		var newtext=get(newSegid,nextVersion(ver));
+		return {text:(text||"")+newtext, segid:newSegid};
 	}
-	var mergeSegment=function(text,currentSegname,rev) {
+	var mergeSegment=function(text,currentSegid,rev) {
 		var oldSegname=rev[2].m;
 		rev[1]=text.length;
 		rev[0]=segs[oldSegname].length;
 		segs[oldSegname]+=text;
-		var i=segnames.indexOf(currentSegname);
+		var i=segnames.indexOf(currentSegid);
 		segnames.splice(i,1);
-		delete segs[currentSegname];
+		delete segs[currentSegid];
 
-		return undefined;
+		return {text:undefined,segid:currentSegid};
 	}
 	var backwardRenameSegment=function(ver,text,rev) { //will not change segs
-		var newSegname=rev[2].r;
-		var newtext=get(newSegname,nextVersion(ver));
-		return newtext;
+		var newSegid=rev[2].r;
+		var newtext=get(newSegid,nextVersion(ver));
+		return {text:newtext,segid:newSegid};
 	}
-	var renameSegment=function(text,currentSegname,rev) {
+	var renameSegment=function(text,currentSegid,rev) {
 		var oldSegname=rev[2].r;
 		segs[oldSegname]=text;
-		var i=segnames.indexOf(currentSegname);
+		var i=segnames.indexOf(currentSegid);
 		segnames.splice(i,1);
-		delete segs[currentSegname];
+		delete segs[currentSegid];
 
-		return undefined;
+		return {text:undefined,segid:currentSegid};
 	}
 
 	var applyMutation=function(ver,revisions,text,segid,getting){
 		//debuglog(segid,'apply mutation',text);
+		var res={text:text,segid:segid};
 		for (var i=0;i<revisions.length;i++) {
 			var r=revisions[i];
 			var ran=Math.random().toString().substr(2,4);
 			if (typeof r[2].t!=="undefined") {//text mutation
 				//debuglog("T"+ran)
-				text=text.substring(0,r[0])+(r[2].t||"")+text.substring(r[0]+r[1]);	
+				res.text=res.text.substring(0,r[0])+(r[2].t||"")+res.text.substring(r[0]+r[1]);	
 				//debuglog("T end"+ran)
 			} else if (r[2].p) { //breaking
 				//if (getting) console.log('getting',segid,r,text);
 				//debuglog("P"+ran+"{")
-				text=getting?backwardSplitSegment(ver,text,r):splitSegment(text,segid,r);
+				res=getting?backwardSplitSegment(ver,res.text,r,res.segid):splitSegment(res.text,res.segid,r);
 				//debuglog("}P end"+ran,text)
 			} else if (r[2].m) { //merging
 				//debuglog("M"+ran)
 				//if (getting) console.log('getting',segid,r,text);
-				text=getting?backwardMergeSegment(ver,text,r):mergeSegment(text,segid,r);
+				res=getting?backwardMergeSegment(ver,res.text,r):mergeSegment(res.text,res.segid,r);
 				//debuglog("M end"+ran,text)
 			} else if (r[2].d) {
 				//debuglog("removed")
 				return "";
 			} else if (r[2].r) {
-				text=getting?backwardRenameSegment(ver,text,r):renameSegment(text,segid,r);
+				res=getting?backwardRenameSegment(ver,res.text,r):renameSegment(res.text,res.segid,r);
 			}
 		};
 
 		//debuglog(segid,"after mutation",text)
-		return text;
+		return res;
 	}
 
 	var getPreviousVersion=function(ver) {
@@ -231,7 +232,8 @@ var createDocument=function(opts) {
 			var revs=versions[i].reverts[segid];
 			if (revs &&revs.length) {
 				if (revs[0][2].m) revs=sortMutation( revs,true); //merge from higher offset
-				inscription=applyMutation(versions[i].version,revs, inscription,segid,true);
+				var res=applyMutation(versions[i].version,revs, inscription,segid,true);
+				inscription=res.text;
 				//debuglog(segid,inscription)
 			}
 			
@@ -336,14 +338,14 @@ var createDocument=function(opts) {
 					if (!rawtags[segid].length) delete rawtags[segid];
 				}
 
-				var newtext=applyMutation(version,revisions,oldinscription,segid);
+				var res=applyMutation(version,revisions,oldinscription,segid);
 
 				segreverts[segid]=revertRevision(segs,revisions,oldinscription,segid,segreverts);
 
 
-				if (typeof newtext!=="undefined") { //after merged , seg is gone
+				if (typeof res.text!=="undefined") { //after merged , seg is gone
 					if (!segs[segid]) throw("text to set doesn't exist "+segid);
-					segs[segid]=newtext;				
+					segs[segid]=res.text;				
 				}
 			}
 			var revs=removeUUID(markups);
