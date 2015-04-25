@@ -125,7 +125,7 @@ var createPNetwork=function(opts) {
 
 	var getPayload=function(code) {
 		var res=get(code);
-		return (code%2==1)?res[0]:res[2];	
+		return (code%2==1)?res[0]:res;	
 	}	
 
 	var inscriptionOf=function(scode) {

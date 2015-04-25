@@ -12,8 +12,11 @@ it("split",function(done){
 	layerdoc=API.layerdoc.create();
 	layerdoc.put("a","122333");
 	var layermutation=API.layermarkup.create(layerdoc);
-	layermutation.createMarkup("a",1,0,{"p":"b"});
-	layermutation.createMarkup("a",3,0,{"p":"c"});
+	layermutation.splitPara("a","b",1);
+	layermutation.splitPara("a","c",3);
+
+	//layermutation.createMarkup("a",1,0,{"_segment":"b"});
+	//layermutation.createMarkup("a",3,0,{"_segment":"c"});
 	
 	layerdoc.evolve(layermutation,function(){
 		assert.equal(layerdoc.ndoc,3);
@@ -26,6 +29,7 @@ it("split",function(done){
 
 it("split backward",function(){
 	//console.log(JSON.stringify(layerdoc.versions));
+	
 	assert.equal(layerdoc.get("a",-1),"122333");
 	assert.equal(layerdoc.get("b",-1),undefined);
 	assert.equal(layerdoc.get("c",-1),undefined);
@@ -39,19 +43,23 @@ it("merge",function(done){
 	layerdoc.put("c","333");
 
 	var layermutation=API.layermarkup.create(layerdoc);
-	layermutation.createMarkup("b",0,0,{"m":"a"}); //we don't need to mention start,len , it will become 1,2
-	layermutation.createMarkup("c",0,0,{"m":"a"}); 
+
+	layermutation.mergePara("b","a");
+	layermutation.mergePara("c","a");
+
+	//layermutation.createMarkup("b",0,0,{"_merge":"a"}); //we don't need to mention start,len , it will become 1,2
+	//layermutation.createMarkup("c",0,0,{"_merge":"a"}); 
 
 	layerdoc.evolve(layermutation,function(){
 		//console.log(JSON.stringify(layerdoc.versions));
 		assert.equal(layerdoc.ndoc,1);
 		assert.equal(layerdoc.get("a"),"122333");
 
-		assert.equal(layerdoc.versions[0].revisions.b[0][0],1); //insert "b" at 1 of "a"
-		assert.equal(layerdoc.versions[0].revisions.b[0][1],2); //length of "b"
+		assert.equal(layerdoc.versions[0].revisions.b[0].s,1); //insert "b" at 1 of "a"
+		assert.equal(layerdoc.versions[0].revisions.b[0].l,2); //length of "b"
 
-		assert.equal(layerdoc.versions[0].revisions.c[0][0],3); //insert "c" at 3 of "a"
-		assert.equal(layerdoc.versions[0].revisions.c[0][1],3); //length of "c"
+		assert.equal(layerdoc.versions[0].revisions.c[0].s,3); //insert "c" at 3 of "a"
+		assert.equal(layerdoc.versions[0].revisions.c[0].l,3); //length of "c"
 
 		assert.equal(!!layerdoc.get("b"),false); //not exist in this version
 		assert.equal(!!layerdoc.get("c"),false); //not exist in this version
@@ -72,8 +80,11 @@ it("split than merge",function(done){
 	layerdoc.put("b1","223333");
 
 	var layermutation=API.layermarkup.create(layerdoc);
-	layermutation.createMarkup("a1",1,0,{"p":"b"}); 
-	layermutation.createMarkup("b1",2,0,{"p":"c"}); 
+	//layermutation.createMarkup("a1",1,0,{"_segment":"b"}); 
+	//layermutation.createMarkup("b1",2,0,{"_segment":"c"}); 
+	layermutation.splitPara("a1","b",1);
+	layermutation.splitPara("b1","c",2);
+
 	layerdoc.evolve(layermutation,function(){
 		assert.equal(layerdoc.get("a"),"1");
 		assert.equal(layerdoc.get("a1"),"1");
@@ -82,8 +93,11 @@ it("split than merge",function(done){
 		assert.equal(layerdoc.get("c"),"3333");
 
 		layermutation=API.layermarkup.create(layerdoc);
-		layermutation.createMarkup("a1",0,0,{"m":"a"}); 
-		layermutation.createMarkup("b1",0,0,{"m":"b"}); 
+		//layermutation.createMarkup("a1",0,0,{"_merge":"a"}); 
+		//layermutation.createMarkup("b1",0,0,{"_merge":"b"}); 
+
+		layermutation.mergePara("a1","a");
+		layermutation.mergePara("b1","b");
 		layerdoc.evolve(layermutation,function(){
 			assert.equal(layerdoc.get("a"),"11");
 			assert.equal(layerdoc.get("b"),"二22");
@@ -152,12 +166,12 @@ it("check validity of split/merge ",function(done){
 
 });
 
+
 it("migrate internal tag",function(done){
 	layerdoc=API.layerdoc.create();
 	layerdoc.put("a","11112<tag/>222");
 	layerdoc.put("c","3333");
 	layerdoc.put("d","44<tag2/>44");
-
 
 	var layermutation=API.layermarkup.create(layerdoc);
 	layermutation.splitPara("a","a1",4); 

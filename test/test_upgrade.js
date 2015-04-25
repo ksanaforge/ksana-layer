@@ -69,7 +69,9 @@ it("upgrade markup to latest base text",function(){
 	*/
 	var ver=JSON.parse(fs.readFileSync("daodejin2.ver","utf8"));
 	var csv=fs.readFileSync("daodejin2.csv","utf8");
+
 	assert.equal(csv.indexOf('萬物母．<pb n="1.c"/>常無')>-1,true);
+
 
 	layerdoc=API.layerdoc.createFromCSV(csv,{name:"daodejin",version:ver.latestversion,versions:ver.versions});
 
@@ -77,16 +79,20 @@ it("upgrade markup to latest base text",function(){
 	layermarkup.importJSON(JSON.parse(fs.readFileSync("daodejin.mrk","utf8")));
 
 	oldversion=layermarkup.get(m1);
+	olds=oldversion.s;
+	oldl=oldversion.l; //oldversion will not survive after upgrade
 
 	assert.equal(layermarkup.version!==layerdoc.version,true); //different version
+	inscription=layermarkup.inscriptionOf(m1);
 	assert.equal(inscription,"欲觀其妙");                       //markups based on old version still works
 
 	layermarkup.upgrade();                       //now sync with the latest version TODO
 
 	newversion=layermarkup.get(m1);
 
-	assert.equal(newversion[0]-oldversion[0],2); //new version markup has advance 2 也
-	assert.equal(newversion[1],oldversion[1]);   //same length
+	assert.equal(newversion.s-olds,2); //new version markup has advance 2 也
+
+	assert.equal(newversion.l,oldl);   //same length
 	inscription=layermarkup.inscriptionOf(m1);
 	assert.equal(inscription,"欲觀其妙");
 

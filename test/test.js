@@ -68,7 +68,6 @@ it("upgrade markup",function(){
 	assert.equal(inscription,"欲觀其妙");
 
 	layermarkup.upgrade();
-	
 	inscription=layermarkup.inscriptionOf(m1);
 	assert.equal(inscription,"欲觀其妙");
 
