@@ -18,10 +18,19 @@ var createFromKdb=function(kdb) {
 		}
 		return out;
 	}
+	var filesegsFromSegnames=function(segs) {
+		var segnames=kdb.get("segnames");
+		var out=[];
+		segs.forEach(function(segname){
+			var idx=segnames.indexOf(segname)
+			if (idx>-1) out.push(kdb.absSegToFileSeg(idx));
+		});
+		return out;
+	}
 	doc.prefetch=function(segnames,cb) {
 		var segnames=filterLoadedSeg(segnames);
 
-		var filesegs=kdb.findFirstSeg(segnames);
+		var filesegs=filesegsFromSegnames(segnames);
 
 		var keys=filesegs.map(function(fseg){
 			return ["filecontents",fseg.file,fseg.seg];
