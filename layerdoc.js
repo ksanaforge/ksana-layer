@@ -375,6 +375,7 @@ var createDocument=function(opts) {
 			rawtags[id]=res.tags;
 		}
 		segnames.push(id);
+		return res.text;
 	}
 
 
