@@ -1,5 +1,8 @@
 var assert=require("assert");
 var API=require("..");
+var layerDoc=API.layerdoc_lite;
+var layerMarkup=API.layermarkup;
+
 var fs=require("fs");
 var layerdoc=null;
 var layermarkup=null;
@@ -9,12 +12,12 @@ describe("upgrade an csv",function() {
 
 it("create from csv",function(){
 	var csv=fs.readFileSync("./daodejin.csv","utf8");
-	layerdoc=API.layerdoc.createFromCSV(csv,{name:"daodejin"});
+	layerdoc=layerDoc.createFromCSV(csv,{name:"daodejin"});
 	assert.equal(layerdoc.ndoc,82);
 });
 
 it("create mutation",function(){
-	var layermutation=API.layermarkup.create(layerdoc,{mutate:true});
+	var layermutation=layerMarkup.create(layerdoc,{mutate:true});
 	var segid="1";
 	var m1=layermutation.createMarkup(segid,17,0,{t:"也"});
 	var m2=layermutation.createMarkup(segid,8,0,{t:"也"});
@@ -23,7 +26,7 @@ it("create mutation",function(){
 });
 
 it("create markup",function(){
-	layermarkup=API.layermarkup.create(layerdoc);
+	layermarkup=layerMarkup.create(layerdoc);
 	m1=layermarkup.createMarkup("1",35,4);
 
 	var inscription=layermarkup.inscriptionOf(m1);
@@ -34,7 +37,7 @@ it("create markup",function(){
 
 it("upgrade base text",function(done){
 
-	var layermutation=API.layermarkup.create(layerdoc);
+	var layermutation=layerMarkup.create(layerdoc);
 	layermutation.importJSON(JSON.parse(fs.readFileSync("daodejin.mut","utf8")));
 
 	layerdoc.evolve(layermutation.markups,function(){
@@ -73,9 +76,9 @@ it("upgrade markup to latest base text",function(){
 	assert.equal(csv.indexOf('萬物母．<pb n="1.c"/>常無')>-1,true);
 
 
-	layerdoc=API.layerdoc.createFromCSV(csv,{name:"daodejin",version:ver.latestversion,versions:ver.versions});
+	layerdoc=layerDoc.createFromCSV(csv,{name:"daodejin",version:ver.latestversion,versions:ver.versions});
 
-	layermarkup=API.layermarkup.create(layerdoc);
+	layermarkup=layerMarkup.create(layerdoc);
 	layermarkup.importJSON(JSON.parse(fs.readFileSync("daodejin.mrk","utf8")));
 
 	oldversion=layermarkup.get(m1);
