@@ -1,6 +1,6 @@
 var assert=require("assert");
 var API=require("..");
-var layerDoc=API.layerdoc_lite;
+var layerDoc=API.layerdoc;
 var layerMarkup=API.layermarkup;
 
 var fs=require("fs");

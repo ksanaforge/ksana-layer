@@ -1,5 +1,6 @@
 var assert=require("assert");
-var API=require("..");
+var layerMarkup=require("..").layermarkup;
+var layerDoc=require("..").layerdoc_full;
 var fs=require("fs");
 var layerdoc=null;
 var layermarkup=null;
@@ -9,9 +10,9 @@ var m1,m2=null;
 describe("split merge paragraph",function() {
 
 it("split",function(done){
-	layerdoc=API.layerdoc.create();
+	layerdoc=layerDoc.create();
 	layerdoc.put("a","122333");
-	var layermutation=API.layermarkup.create(layerdoc);
+	var layermutation=layerMarkup.create(layerdoc);
 	layermutation.splitPara("a","b",1);
 	layermutation.splitPara("a","c",3);
 
@@ -37,12 +38,12 @@ it("split backward",function(){
 
 
 it("merge",function(done){
-	layerdoc=API.layerdoc.create();
+	layerdoc=layerDoc.create();
 	layerdoc.put("a","1");
 	layerdoc.put("b","22");
 	layerdoc.put("c","333");
 
-	var layermutation=API.layermarkup.create(layerdoc);
+	var layermutation=layerMarkup.create(layerdoc);
 
 	layermutation.mergePara("b","a");
 	layermutation.mergePara("c","a");
@@ -74,12 +75,12 @@ it("merge",function(done){
 
 
 it("split than merge",function(done){
-	layerdoc=API.layerdoc.create();
+	layerdoc=layerDoc.create();
 	layerdoc.put("a","1");
 	layerdoc.put("a1","1二");
 	layerdoc.put("b1","223333");
 
-	var layermutation=API.layermarkup.create(layerdoc);
+	var layermutation=layerMarkup.create(layerdoc);
 	//layermutation.createMarkup("a1",1,0,{"_segment":"b"}); 
 	//layermutation.createMarkup("b1",2,0,{"_segment":"c"}); 
 	layermutation.splitPara("a1","b",1);
@@ -92,7 +93,7 @@ it("split than merge",function(done){
 		assert.equal(layerdoc.get("b1"),"22");
 		assert.equal(layerdoc.get("c"),"3333");
 
-		layermutation=API.layermarkup.create(layerdoc);
+		layermutation=layerMarkup.create(layerdoc);
 		//layermutation.createMarkup("a1",0,0,{"_merge":"a"}); 
 		//layermutation.createMarkup("b1",0,0,{"_merge":"b"}); 
 
@@ -129,14 +130,14 @@ it("split than merge",function(done){
 });
 
 it("check validity of split/merge ",function(done){
-	layerdoc=API.layerdoc.create();
+	layerdoc=layerDoc.create();
 	layerdoc.put("a","1Q22");
 	layerdoc.put("b","二");
 	layerdoc.put("b1","2223333");
 	layerdoc.put("d","44444");
 	layerdoc.put("e","55555");
 
-	var layermutation=API.layermarkup.create(layerdoc);
+	var layermutation=layerMarkup.create(layerdoc);
 	layermutation.splitPara("a","a1",2); 
 	m=layermutation.mergePara("b","a");  //this will fail, because a is spliting
 	assert.equal(m,null); //cannot merge.
@@ -168,12 +169,12 @@ it("check validity of split/merge ",function(done){
 
 
 it("migrate internal tag",function(done){
-	layerdoc=API.layerdoc.create();
+	layerdoc=layerDoc.create();
 	layerdoc.put("a","11112<tag/>222");
 	layerdoc.put("c","3333");
 	layerdoc.put("d","44<tag2/>44");
 
-	var layermutation=API.layermarkup.create(layerdoc);
+	var layermutation=layerMarkup.create(layerdoc);
 	layermutation.splitPara("a","a1",4); 
 	layermutation.mergePara("d","c");
 
@@ -186,13 +187,13 @@ it("migrate internal tag",function(done){
 
 
 it("migrate markup tag",function(done){
-	layerdoc=API.layerdoc.create();
+	layerdoc=layerDoc.create();
 	layerdoc.put("a","1111二222");
 	layerdoc.put("c","3333");
 	layerdoc.put("d","四444");
 
 
-	layermarkup=API.layermarkup.create(layerdoc);
+	layermarkup=layerMarkup.create(layerdoc);
 	var m1=layermarkup.createMarkup("a",4,2);
 
 
@@ -201,7 +202,7 @@ it("migrate markup tag",function(done){
 	var m2=layermarkup.createMarkup("d",0,2);
 	assert.equal(layermarkup.inscriptionOf(m2),"四4");
 
-	var layermutation=API.layermarkup.create(layerdoc);
+	var layermutation=layerMarkup.create(layerdoc);
 	layermutation.splitPara("a","a1",4); 
 	layermutation.mergePara("d","c");
 
@@ -221,14 +222,14 @@ it("migrate markup tag",function(done){
 
 
 it("rename para",function(done){
-	layerdoc=API.layerdoc.create();
+	layerdoc=layerDoc.create();
 	layerdoc.put("a","1111");
 	layerdoc.put("b","2222");
 
-	layermarkup=API.layermarkup.create(layerdoc);
+	layermarkup=layerMarkup.create(layerdoc);
 	var m1=layermarkup.createMarkup("a",1,2);
 
-	layerrename=API.layermarkup.create(layerdoc);
+	layerrename=layerMarkup.create(layerdoc);
 	var m2=layerrename.renamePara("a","AA");
 	layerdoc.evolve(layerrename,function(){
 
@@ -241,9 +242,9 @@ it("rename para",function(done){
 		assert.equal(layerdoc.get("a"),undefined);
 		assert.equal(layerdoc.get("a",-1),"1111");
 
-		layermarkup=API.layermarkup.create(layerdoc);
+		layermarkup=layerMarkup.create(layerdoc);
 
-		layerrename2=API.layermarkup.create(layerdoc);
+		layerrename2=layerMarkup.create(layerdoc);
 		var m2=layerrename2.renamePara("AA","AAA");
 		layerdoc.evolve(layerrename2,function(){
 			assert.equal(layerdoc.get("AAA"),"1111");

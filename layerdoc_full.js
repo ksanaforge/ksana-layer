@@ -19,19 +19,33 @@ var debuglog=function() {
 	console.log.apply(this,args );
 }
 var sortMutation=function(revisions,reverse) { 
+	//apply text mutation "t", then pagebreak "p", finally paragraph merge "m"
+	//each group sort desc by start offset
 	return revisions.sort(function(a,b){
-		var r=b.s-a.s;
-		if (reverse) r=1-r;
+		var at=(!!a.t),bt=(!!b.t);
+		var am=(!!a._merge),bm=(!!b._merge);
+		var as=(!!a._segment),bs=(!!b._segment);
+		var r=0;
+		if (at && bm || at && bs || as && bm) r= -1;
+		else if (am && bs || as && bt || am && bt) r=  1;
+		else {
+			r=b.s-a.s;
+			if (reverse) r=1-r;
+		}
 		return r;
+
 	});
 }
 /**
 	Create revert information from revision information
+	@param {object} key:segid value:segment text
 	@param {array} revisions
 	@param {string} inscription text
+	@param {string} segment id
+	@param {object} revert information of all segments in this evolution
 	@private
 */
-var revertRevision=function(revs,inscription) {
+var revertRevision=function(segs,revs,inscription,segid,segreverts) {
 	var reverts=[], offset=0;
 
 	revs=sortMutation(revs,true);  //sort asc by starting offset
@@ -48,6 +62,23 @@ var revertRevision=function(revs,inscription) {
 			delete m.uuid;  //uuid is not required
 			offset+=m.l-newtext.length;
 			reverts.push(m);
+		} else if (m._segment) {
+			var newp=m._segment; //new seg id
+			if (!segreverts[newp]) segreverts[newp]=[];
+			reverts.push({s:m.s,l:m.l,"_merge":newp}); //merge with newp
+			var newptext=segs[newp]||"";
+
+			segreverts[newp].push({s: m.s , l:m.l ,"_delete":segid} ); //delete with segid
+		} else if (m._merge) {
+			var oldsegid=m._merge; //the seg id to be merged with
+			if (!segreverts[oldsegid]) segreverts[oldsegid]=[];
+			reverts.push({s:m.s, l:m.l,_segment:oldsegid}); //merge with oldsegid
+			segreverts[oldsegid].push({s:m.s,l:m.l,_segment:segid}); //break oldsegid
+
+		} else if (m._rename) {
+			var renameto=m._rename; 
+			reverts.push({s:m.s,l:m.l,_rename:renameto});
+			segreverts[renameto]=[ {s:m.s,l:m.l,_rename:segid}];
 		} else throw "incorrect revs format "+r;
 	});
 	//reverts.sort(function(a,b){return b[0]-a[0];}); //sort desc
@@ -80,6 +111,7 @@ var createDocument=function(opts) {
 
 	Object.defineProperty(doc,'debug',{get:function(){return debug}, set:function(d){debug=d}});
 
+
 	var nextVersion=function(ver) { //return next version, input latest version output latest version
 		for (var i=0;i<versions.length;i++) {
 			if (versions[i].version==ver) {
@@ -88,19 +120,108 @@ var createDocument=function(opts) {
 		}
 		return version;
 	}
-	var applyMutation=function(revisions,text){
+	var backwardSplitSegment=function(ver,text,rev,oldSegid) { //will not change segs
+		//console.log(text,segs[newSegid],breakat)
+		//return segs[newSegid].substr(breakat);
+		var breakat=rev.s;
+		var len=rev.l;
+		var newSegid=rev._segment;
+		
+		//debuglog("back split",text, rev, "from",newSegid )
+		if (!text) {
+			var nv=nextVersion(ver);
+			//debuglog("get text from newSegid",newSegid,nv)
+			var t=get(newSegid,nv);
+			//debuglog("'"+t+"'",breakat,len);
+
+			if (nv==version) return {text:t.substr(breakat,len),segid:newSegid};
+			else return {text:t,segid:newSegid};
+		}
+		//debuglog("use old inscription")
+		return {text:text.substr(0,breakat),segid:oldSegid}; //find text in other segment
+	}
+	var splitSegment=function(text,currentSegid,rev) {
+		var newSegid=rev._segment;
+		var breakat=rev.s;
+		if (breakat<=0 || breakat===text.length) {
+			console.error("cannot break at ",breakat,text,currentSegid,rev);
+			return {text:text,segid:currentSegid};
+		}
+		if (segs[newSegid]) {
+			throw "repeated segname";
+		} else {
+			segs[newSegid]=text.substr(breakat);
+			rev.l=segs[newSegid].length;  // bytes of new segname
+			var i=segnames.indexOf(currentSegid);
+			segnames.splice(i,0,newSegid);				
+			return {text:text.substr(0,breakat),segid:currentSegid};
+		}
+	}
+	var backwardMergeSegment=function(ver,text,rev) { //will not change segs
+		var newSegid=rev._merge;
+		var breakat=rev.s;
+
+		//debuglog("backward merge",text,rev)
+
+		var newtext=get(newSegid,nextVersion(ver));
+		return {text:(text||"")+newtext, segid:newSegid};
+	}
+	var mergeSegment=function(text,currentSegid,rev) {
+		var oldSegname=rev._merge;
+		rev.l=text.length;
+		rev.s=segs[oldSegname].length;
+		segs[oldSegname]+=text;
+		var i=segnames.indexOf(currentSegid);
+		segnames.splice(i,1);
+		delete segs[currentSegid];
+
+		return {text:undefined,segid:currentSegid};
+	}
+	var backwardRenameSegment=function(ver,text,rev) { //will not change segs
+		var newSegid=rev._rename;
+		var newtext=get(newSegid,nextVersion(ver));
+		return {text:newtext,segid:newSegid};
+	}
+	var renameSegment=function(text,currentSegid,rev) {
+		var oldSegname=rev._rename;
+		segs[oldSegname]=text;
+		var i=segnames.indexOf(currentSegid);
+		segnames.splice(i,1);
+		delete segs[currentSegid];
+
+		return {text:undefined,segid:currentSegid};
+	}
+
+	var applyMutation=function(ver,revisions,text,segid,getting){
+		//debuglog(segid,'apply mutation',text);
+		var res={text:text,segid:segid};
 		for (var i=0;i<revisions.length;i++) {
 			var r=revisions[i];
 			var ran=Math.random().toString().substr(2,4);
 			if (typeof r.t!=="undefined") {//text mutation
 				//debuglog("T"+ran)
-				text=text.substring(0,r.s)+(r.t||"")+text.substring(r.s+r.l);
+				res.text=res.text.substring(0,r.s)+(r.t||"")+res.text.substring(r.s+r.l);
 				//debuglog("T end"+ran)
+			} else if (r._segment) { //breaking
+				//if (getting) console.log('getting',segid,r,text);
+				//debuglog("P"+ran+"{")
+				res=getting?backwardSplitSegment(ver,res.text,r,res.segid):splitSegment(res.text,res.segid,r);
+				//debuglog("}P end"+ran,text)
+			} else if (r._merge) { //merging
+				//debuglog("M"+ran)
+				//if (getting) console.log('getting',segid,r,text);
+				res=getting?backwardMergeSegment(ver,res.text,r):mergeSegment(res.text,res.segid,r);
+				//debuglog("M end"+ran,text)
+			} else if (r._delete) {
+				//debuglog("removed")
+				return "";
+			} else if (r._rename) {
+				res=getting?backwardRenameSegment(ver,res.text,r):renameSegment(res.text,res.segid,r);
 			}
 		};
 
 		//debuglog(segid,"after mutation",text)
-		return text;
+		return res;
 	}
 
 	var getPreviousVersion=function(ver) {
@@ -126,8 +247,9 @@ var createDocument=function(opts) {
 		for (var i=versions.length-1;i>=0;i--) {
 			var revs=versions[i].reverts[segid];
 			if (revs &&revs.length) {
-				if (revs[0]._merge) revs=sortMutation(revs,true); //merge from higher offset
-				inscription=applyMutation(revs, inscription);
+				if (revs[0]._merge) revs=sortMutation( revs,true); //merge from higher offset
+				var res=applyMutation(versions[i].version,revs, inscription,segid,true);
+				inscription=res.text;
 				//debuglog(segid,inscription)
 			}
 			
@@ -144,6 +266,50 @@ var createDocument=function(opts) {
 		cb();
 	}
 
+	var splitSeg=function(revs,segid) {
+
+		for (var i=0;i<revs.length;i++) {
+			var rev=revs[i];
+			if (typeof rev._segment==="undefined") continue;
+
+			var newSeg=rev._segment;
+			var splitat=rev.s;
+			var newtags=[];
+			var tags=rawtags[segid]||[];
+			tags.map(function(tag){
+				if (tag[0]<splitat) return;
+				newtags.push([tag[0]-splitat,tag[1]]);
+			});
+
+			rawtags[segid]=tags.filter(function(tag){
+				return tag[0]<splitat;
+			});
+
+			if (!rawtags[newSeg]) rawtags[newSeg]=[];
+			rawtags[newSeg]=newtags;
+		}
+	}
+
+	var mergeSeg=function(revs,segid) {
+		var mergewith=revs[0]._merge;
+		if (typeof mergewith==="undefined") return;
+		var tags=rawtags[segid];
+		var start=segs[mergewith].length;
+		var newtags=tags.map(function(tag){
+			return [tag[0]+start,tag[1]];
+		});
+		if (!rawtags[mergewith]) rawtags[mergewith]=[];
+		rawtags[mergewith]=rawtags[mergewith].concat(newtags);
+
+		rawtags[segid]=[];
+	}
+
+	var renameSeg=function(revs,segid) {
+		var renameto=revs[0]._rename;
+		if (typeof renameto==="undefined") return;
+		rawtags[renameto]=rawtags[segid];
+		rawtags[segid]=[];
+	}
 	//tag are never deleted, only moved to new position
 	var adjustRawtagOffset=function(m) {
 		var s=m[0], delta=0;
@@ -177,20 +343,30 @@ var createDocument=function(opts) {
 
 				revisions=sortMutation(revisions);
 				if (rawtags[segid]) {
+					mergeSeg(revisions,segid);
+					splitSeg(revisions,segid);
+					renameSeg(revisions,segid);
 					rawtags[segid]=(rawtags[segid]||[]).map(adjustRawtagOffset,revisions);
 					if (!rawtags[segid].length) delete rawtags[segid];
 				}
 
-				segs[segid]=applyMutation(revisions,oldinscription);
-				var reverts=revertRevision(revisions,oldinscription);
+				var res=applyMutation(version,revisions,oldinscription,segid);
+
+				
+				var reverts=revertRevision(segs,revisions,oldinscription,segid,segreverts);
 				segreverts[segid]=reverts;
+
+				if (typeof res.text!=="undefined") { //after merged , seg is gone
+					if (!segs[segid]) throw("text to set doesn't exist "+segid);
+					segs[segid]=res.text;				
+				}
 			}
 			var revs=removeUUID(markups);
 
 			versions.push({version:version, reverts:segreverts, revisions: revs});
 			version=UUID();
 			if (cb) cb();
-		});
+		})
 	}
 
 	var extractTag=function(buf) {
@@ -243,10 +419,10 @@ var createDocument=function(opts) {
 
 	doc._sortMutation=sortMutation;
 
+
+
 	doc.exportCSV=exportCSV;
 	doc.exportVersions=exportVersions;
-
-	doc.upgradeMarkups=upgradeMarkups;
 
 	return doc;
 }
@@ -306,37 +482,5 @@ var createFromCSV=function(buf,opts) {
 	}
 
 	return layerdoc;
-}
-
-var upgradeMarkups=function(ver,segid,markups) {
-	if (ver===this.version) return;  //nothing to do
-
-	var adjustOffset=function(revs,m) {
-		var s=m.s, l=m.l, delta=0, deleted=false;
-		if (l<0) l=0;
-		revs.map(function(rev){
-			if (typeof rev.t=="undefined") return;
-			if (rev.s<=s) { //this will affect the offset
-				delta+= (rev.t.length-rev.l);
-				if(rev.s+rev.l>=s+l) deleted=true;
-			}
-		});
-		s+=delta;
-		if (deleted) { //len=-n ,  not upgradable since last n version
-			if (m.l>=0) l=-1; else l=m.l-1;
-		}
-		m.s=s;m.l=l;
-
-		return m;
-	}
-
-	var versions=this.versions;
-	for (var i=0;i<versions.length;i++) {
-		if (versions[i].version<ver) continue;
-		var forward=versions[i].revisions[segid];
-		if (forward) {
-			for (var j=0;j<markups.length;j++)	markups[j]=adjustOffset(forward, markups[j]);
-		}
-	}
 }
 module.exports={createFromCSV:createFromCSV,create:createDocument};

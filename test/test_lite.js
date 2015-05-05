@@ -1,6 +1,6 @@
 var assert=require("assert");
 var API=require("..");
-var layerdoc_lite=API.layerdoc_lite;
+var layerDoc=API.layerdoc;
 var layerMarkup=API.layermarkup;
 var fs=require("fs");
 var layerdoc=null;
@@ -11,7 +11,7 @@ describe("layer document",function() {
 
 it("create from csv",function(){
 	var csv=fs.readFileSync("./daodejin.csv","utf8");
-	layerdoc=layerdoc_lite.createFromCSV(csv);
+	layerdoc=layerDoc.createFromCSV(csv);
 	assert.equal(layerdoc.ndoc,82);
 });
 
@@ -82,7 +82,7 @@ it("serialized",function(){
 
 it("updateMarkup without layermarkup",function(done){
 	var csv=fs.readFileSync("./daodejin.csv","utf8");
-	var layerdoc=layerdoc_lite.createFromCSV(csv);
+	var layerdoc=layerDoc.createFromCSV(csv);
 	var segid="1";
 
 	/* markup on old version */

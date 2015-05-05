@@ -3,11 +3,11 @@
 
 
 */
+var layerdoc_full=require("./layerdoc_full");
 var layerdoc=require("./layerdoc");
-var layerdoc_lite=require("./layerdoc_lite");
 layerdoc.createFromKdb=require("./layerdoc_kdb");
 var layermarkup=require("./layermarkup");
 var pnetwork=require("./pnetwork");
 var uuid=require("./uuid");
-module.exports={layerdoc:layerdoc,layerdoc_lite:layerdoc_lite,
+module.exports={layerdoc:layerdoc,layerdoc_full:layerdoc_full,
 	layermarkup:layermarkup,pnetwork:pnetwork,UUID:uuid};
